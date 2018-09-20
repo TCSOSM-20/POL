@@ -23,7 +23,7 @@
 ##
 import logging
 
-from peewee import *
+from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField
 from playhouse.sqlite_ext import SqliteExtDatabase
 
 from osm_policy_module.core.config import Config

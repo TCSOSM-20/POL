@@ -30,7 +30,6 @@ import unittest
 from kafka import KafkaProducer, KafkaConsumer
 from kafka.errors import KafkaError
 
-from osm_policy_module.core.agent import PolicyModuleAgent
 from osm_policy_module.core.config import Config
 
 log = logging.getLogger()

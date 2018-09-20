@@ -29,12 +29,12 @@ from unittest.mock import patch, Mock
 
 from kafka import KafkaProducer
 from osm_common.dbmongo import DbMongo
-from osm_policy_module.core import database
 from peewee import SqliteDatabase
 
 from osm_policy_module.common.mon_client import MonClient
+from osm_policy_module.core import database
 from osm_policy_module.core.agent import PolicyModuleAgent
-from osm_policy_module.core.database import ScalingRecord, ScalingAlarm, BaseModel
+from osm_policy_module.core.database import ScalingRecord, ScalingAlarm
 
 log = logging.getLogger()
 log.level = logging.INFO

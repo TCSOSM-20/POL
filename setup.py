@@ -44,7 +44,7 @@ setup(
     maintainer_email=_maintainer_email,
     url=_url,
     license=_license,
-    packages=setuptools.find_packages(),
+    packages=[_name],
     include_package_data=True,
     install_requires=[
         "kafka==1.3.*",
