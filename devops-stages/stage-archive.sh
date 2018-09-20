@@ -26,9 +26,9 @@
 #!/bin/sh
 rm -rf pool
 rm -rf dists
-mkdir -p pool/MON
-mv deb_dist/*.deb pool/MON/
-mkdir -p dists/unstable/MON/binary-amd64/
-apt-ftparchive packages pool/MON > dists/unstable/MON/binary-amd64/Packages
-gzip -9fk dists/unstable/MON/binary-amd64/Packages
-echo 'dists/**,pool/MON/*.deb'
+mkdir -p pool/POL
+mv deb_dist/*.deb pool/POL/
+mkdir -p dists/unstable/POL/binary-amd64/
+apt-ftparchive packages pool/POL > dists/unstable/POL/binary-amd64/Packages
+gzip -9fk dists/unstable/POL/binary-amd64/Packages
+echo 'dists/**,pool/POL/*.deb'
