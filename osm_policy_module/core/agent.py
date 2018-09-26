@@ -51,13 +51,10 @@ class PolicyModuleAgent:
                                            cfg.OSMPOL_MESSAGE_PORT)
 
     def run(self):
-        cfg = Config.instance()
-        cfg.read_environ()
-
         consumer = KafkaConsumer(bootstrap_servers=self.kafka_server,
                                  key_deserializer=bytes.decode,
                                  value_deserializer=bytes.decode,
-                                 consumer_timeout_ms=10000)
+                                 group_id='pol-consumer')
         consumer.subscribe(["ns", "alarm_response"])
 
         for message in consumer:

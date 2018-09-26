@@ -25,4 +25,3 @@ include test-requirements.txt
 include README.rst
 recursive-include osm_policy_module *.py *.xml *.sh
 recursive-include devops-stages *
-recursive-include test *.py

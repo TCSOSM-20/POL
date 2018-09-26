@@ -76,3 +76,7 @@ ChangeLog
 .settings/
 __pycache__/
 .idea
+
+deb_dist
+*.tar.gz
+*.db
