@@ -35,7 +35,7 @@ from osm_policy_module.common.db_client import DbClient
 from osm_policy_module.common.mon_client import MonClient
 from osm_policy_module.core import database
 from osm_policy_module.core.agent import PolicyModuleAgent
-from osm_policy_module.core.database import ScalingRecord, ScalingAlarm
+from osm_policy_module.core.database import ScalingGroup, ScalingAlarm, ScalingPolicy, ScalingCriteria
 
 log = logging.getLogger()
 log.level = logging.INFO
@@ -402,7 +402,7 @@ vnfd_record_mock = {
 
 test_db = SqliteDatabase(':memory:')
 
-MODELS = [ScalingRecord, ScalingAlarm]
+MODELS = [ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm]
 
 
 class PolicyModuleAgentTest(unittest.TestCase):
@@ -445,12 +445,32 @@ class PolicyModuleAgentTest(unittest.TestCase):
                                      operation='GT',
                                      statistic='AVERAGE',
                                      threshold=80,
-                                     vdu_name='cirros_vnfd-VM',
+                                     vdu_name='cirros_ns-1-cirros_vnfd-VM-1',
                                      vnf_member_index='1')
-        scaling_record = ScalingRecord.get()
+        create_alarm.assert_any_call(metric_name='average_memory_utilization',
+                                     ns_id='test_nsr_id',
+                                     operation='LT',
+                                     statistic='AVERAGE',
+                                     threshold=20,
+                                     vdu_name='cirros_ns-1-cirros_vnfd-VM-1',
+                                     vnf_member_index='1')
+        create_alarm.assert_any_call(metric_name='average_memory_utilization',
+                                     ns_id='test_nsr_id',
+                                     operation='GT',
+                                     statistic='AVERAGE',
+                                     threshold=80,
+                                     vdu_name='cirros_ns-2-cirros_vnfd-VM-1',
+                                     vnf_member_index='2')
+        create_alarm.assert_any_call(metric_name='average_memory_utilization',
+                                     ns_id='test_nsr_id',
+                                     operation='LT',
+                                     statistic='AVERAGE',
+                                     threshold=20,
+                                     vdu_name='cirros_ns-2-cirros_vnfd-VM-1',
+                                     vnf_member_index='2')
+        scaling_record = ScalingGroup.get()
         self.assertEqual(scaling_record.name, 'scale_cirros_vnfd-VM')
         self.assertEqual(scaling_record.nsr_id, 'test_nsr_id')
-        self.assertIsNotNone(scaling_record)
 
 
 if __name__ == '__main__':

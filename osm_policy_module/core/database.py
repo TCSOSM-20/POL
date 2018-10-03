@@ -23,7 +23,7 @@
 ##
 import logging
 
-from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField
+from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField, AutoField
 from playhouse.sqlite_ext import SqliteExtDatabase
 
 from osm_policy_module.core.config import Config
@@ -35,14 +35,26 @@ db = SqliteExtDatabase('policy_module.db')
 
 
 class BaseModel(Model):
+    id = AutoField(primary_key=True)
+
     class Meta:
         database = db
 
 
-class ScalingRecord(BaseModel):
+class ScalingGroup(BaseModel):
     nsr_id = CharField()
     name = CharField()
     content = TextField()
+
+
+class ScalingPolicy(BaseModel):
+    name = CharField()
+    scaling_group = ForeignKeyField(ScalingGroup, related_name='scaling_policies')
+
+
+class ScalingCriteria(BaseModel):
+    name = CharField()
+    scaling_policy = ForeignKeyField(ScalingPolicy, related_name='scaling_criterias')
 
 
 class ScalingAlarm(BaseModel):
@@ -50,14 +62,14 @@ class ScalingAlarm(BaseModel):
     action = CharField()
     vnf_member_index = IntegerField()
     vdu_name = CharField()
-    scaling_record = ForeignKeyField(ScalingRecord, related_name='scaling_alarms')
+    scaling_criteria = ForeignKeyField(ScalingCriteria, related_name='scaling_alarms')
 
 
 class DatabaseManager:
     def create_tables(self):
         try:
             db.connect()
-            db.create_tables([ScalingRecord, ScalingAlarm])
+            db.create_tables([ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm])
             db.close()
         except Exception as e:
             log.exception("Error creating tables: ")

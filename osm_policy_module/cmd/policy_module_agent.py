@@ -49,7 +49,7 @@ def main():
     kafka_handler.setFormatter(kafka_formatter)
     kafka_logger.addHandler(kafka_handler)
     log = logging.getLogger(__name__)
-    log.info("Config: %s", cfg)
+    log.info("Config: %s", vars(cfg))
     log.info("Syncing database...")
     db_manager = DatabaseManager()
     db_manager.create_tables()
