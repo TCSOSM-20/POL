@@ -26,7 +26,7 @@ from osm_common import dbmongo
 from osm_policy_module.core.config import Config
 
 
-class DbClient:
+class CommonDbClient:
     def __init__(self):
         cfg = Config.instance()
         self.common_db = dbmongo.DbMongo()

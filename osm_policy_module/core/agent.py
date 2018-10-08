@@ -30,7 +30,7 @@ from json import JSONDecodeError
 import yaml
 from aiokafka import AIOKafkaConsumer
 
-from osm_policy_module.common.db_client import DbClient
+from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.common.lcm_client import LcmClient
 from osm_policy_module.common.mon_client import MonClient
 from osm_policy_module.core import database
@@ -48,7 +48,7 @@ class PolicyModuleAgent:
         if not loop:
             loop = asyncio.get_event_loop()
         self.loop = loop
-        self.db_client = DbClient()
+        self.db_client = CommonDbClient()
         self.mon_client = MonClient(loop=self.loop)
         self.lcm_client = LcmClient(loop=self.loop)
         self.kafka_server = '{}:{}'.format(cfg.OSMPOL_MESSAGE_HOST,

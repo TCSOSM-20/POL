@@ -32,7 +32,7 @@ from kafka import KafkaProducer
 from osm_common.dbmongo import DbMongo
 from peewee import SqliteDatabase
 
-from osm_policy_module.common.db_client import DbClient
+from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.common.mon_client import MonClient
 from osm_policy_module.core import database
 from osm_policy_module.core.agent import PolicyModuleAgent
@@ -423,9 +423,9 @@ class PolicyModuleAgentTest(unittest.TestCase):
     @patch.object(DbMongo, 'db_connect', Mock())
     @patch.object(KafkaProducer, '__init__')
     @patch.object(MonClient, 'create_alarm')
-    @patch.object(DbClient, 'get_vnfd')
-    @patch.object(DbClient, 'get_nsr')
-    @patch.object(DbClient, 'get_vnfr')
+    @patch.object(CommonDbClient, 'get_vnfd')
+    @patch.object(CommonDbClient, 'get_nsr')
+    @patch.object(CommonDbClient, 'get_vnfr')
     def test_configure_scaling_groups(self, get_vnfr, get_nsr, get_vnfd, create_alarm, kafka_producer_init):
         def _test_configure_scaling_groups_get_vnfr(*args, **kwargs):
             if '1' in args[1]:
