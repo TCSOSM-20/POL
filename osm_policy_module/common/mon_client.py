@@ -45,8 +45,9 @@ class MonClient:
     def create_alarm(self, metric_name: str, ns_id: str, vdu_name: str, vnf_member_index: int, threshold: int,
                      statistic: str, operation: str):
         cor_id = random.randint(1, 1000000)
-        msg = self._create_alarm_payload(cor_id, metric_name, ns_id, vdu_name, vnf_member_index, threshold, statistic,
-                                         operation)
+        msg = self._build_create_alarm_payload(cor_id, metric_name, ns_id, vdu_name, vnf_member_index, threshold,
+                                               statistic,
+                                               operation)
         log.info("Sending create_alarm_request %s", msg)
         self.producer.send(topic='alarm_request', key='create_alarm_request', value=json.dumps(msg))
         self.producer.flush()
@@ -61,14 +62,39 @@ class MonClient:
                 content = json.loads(message.value)
                 log.info("Received create_alarm_response %s", content)
                 if self._is_alarm_response_correlation_id_eq(cor_id, content):
+                    if not content['alarm_create_response']['status']:
+                        raise ValueError("Error creating alarm in MON")
                     alarm_uuid = content['alarm_create_response']['alarm_uuid']
-                    # TODO Handle error response
                     return alarm_uuid
 
         raise ValueError('Timeout: No alarm creation response from MON. Is MON up?')
 
-    def _create_alarm_payload(self, cor_id: int, metric_name: str, ns_id: str, vdu_name: str, vnf_member_index: int,
-                              threshold: int, statistic: str, operation: str):
+    def delete_alarm(self, ns_id: str, vnf_member_index: int, vdu_name: str, alarm_uuid: str):
+        cor_id = random.randint(1, 1000000)
+        msg = self._build_delete_alarm_payload(cor_id, ns_id, vdu_name, vnf_member_index, alarm_uuid)
+        log.info("Sending delete_alarm_request %s", msg)
+        self.producer.send(topic='alarm_request', key='delete_alarm_request', value=json.dumps(msg))
+        self.producer.flush()
+        consumer = KafkaConsumer(bootstrap_servers=self.kafka_server,
+                                 key_deserializer=bytes.decode,
+                                 value_deserializer=bytes.decode,
+                                 consumer_timeout_ms=10000)
+        consumer.subscribe(['alarm_response'])
+        for message in consumer:
+            if message.key == 'delete_alarm_response':
+                content = json.loads(message.value)
+                log.info("Received delete_alarm_response %s", content)
+                if self._is_alarm_response_correlation_id_eq(cor_id, content):
+                    if not content['alarm_delete_response']['status']:
+                        raise ValueError("Error deleting alarm in MON")
+                    alarm_uuid = content['alarm_delete_response']['alarm_uuid']
+                    return alarm_uuid
+
+        raise ValueError('Timeout: No alarm creation response from MON. Is MON up?')
+
+    def _build_create_alarm_payload(self, cor_id: int, metric_name: str, ns_id: str, vdu_name: str,
+                                    vnf_member_index: int,
+                                    threshold: int, statistic: str, operation: str):
         alarm_create_request = {
             'correlation_id': cor_id,
             'alarm_name': str(uuid.uuid4()),
@@ -83,6 +109,20 @@ class MonClient:
         }
         msg = {
             'alarm_create_request': alarm_create_request,
+        }
+        return msg
+
+    def _build_delete_alarm_payload(self, cor_id: int, ns_id: str, vdu_name: str,
+                                    vnf_member_index: int, alarm_uuid: str):
+        alarm_delete_request = {
+            'correlation_id': cor_id,
+            'alarm_uuid': alarm_uuid,
+            'ns_id': ns_id,
+            'vdu_name': vdu_name,
+            'vnf_member_index': vnf_member_index
+        }
+        msg = {
+            'alarm_delete_request': alarm_delete_request,
         }
         return msg
 
