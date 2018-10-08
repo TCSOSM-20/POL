@@ -43,7 +43,7 @@ def main():
                         datefmt='%m/%d/%Y %I:%M:%S %p',
                         level=logging.getLevelName(cfg.OSMPOL_LOG_LEVEL))
     kafka_logger = logging.getLogger('kafka')
-    kafka_logger.setLevel(logging.WARN)
+    kafka_logger.setLevel(logging.getLevelName(cfg.OSMPOL_KAFKA_LOG_LEVEL))
     kafka_formatter = logging.Formatter(log_formatter_str)
     kafka_handler = logging.StreamHandler(sys.stdout)
     kafka_handler.setFormatter(kafka_formatter)

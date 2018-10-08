@@ -100,7 +100,9 @@ class PolicyModuleAgent:
         try:
             alarm = ScalingAlarm.select().where(ScalingAlarm.alarm_id == alarm_id).get()
             log.info("Sending scaling action message for ns: %s", alarm_id)
-            self.lcm_client.scale(alarm.scaling_record.nsr_id, alarm.scaling_record.name, alarm.vnf_member_index,
+            self.lcm_client.scale(alarm.scaling_criteria.scaling_policy.scaling_group.nsr_id,
+                                  alarm.scaling_criteria.scaling_policy.scaling_group.name,
+                                  alarm.vnf_member_index,
                                   alarm.action)
         except ScalingAlarm.DoesNotExist:
             log.info("There is no action configured for alarm %s.", alarm_id)
@@ -120,6 +122,7 @@ class PolicyModuleAgent:
 
     def _configure_scaling_groups(self, nsr_id: str):
         # TODO(diazb): Check for alarm creation on exception and clean resources if needed.
+        # TODO: Add support for non-nfvi metrics
         with database.db.atomic():
             vnfrs = self.db_client.get_vnfrs(nsr_id)
             log.info("Checking %s vnfrs...", len(vnfrs))
@@ -161,31 +164,37 @@ class PolicyModuleAgent:
                                 scaling_group=scaling_group_record
                             )
                             log.info("Created scaling policy record in DB : name=%s, scaling_group.name=%s",
-                                     scaling_policy_record.nsr_id,
+                                     scaling_policy_record.name,
                                      scaling_policy_record.scaling_group.name)
-                        for vdu in vnfd['vdu']:
-                            vdu_monitoring_params = vdu['monitoring-param']
-                            for scaling_criteria in scaling_policy['scaling-criteria']:
-                                try:
-                                    scaling_criteria_record = ScalingCriteria.select().join(ScalingPolicy).where(
-                                        ScalingPolicy.id == scaling_policy_record.id,
-                                        ScalingCriteria.name == scaling_criteria['name']
-                                    ).get()
-                                except ScalingCriteria.DoesNotExist:
-                                    log.info("Creating scaling criteria record in DB...")
-                                    scaling_criteria_record = ScalingCriteria.create(
-                                        nsr_id=nsr_id,
-                                        name=scaling_policy['name'],
-                                        scaling_policy=scaling_policy_record
-                                    )
-                                    log.info(
-                                        "Created scaling criteria record in DB : name=%s, scaling_criteria.name=%s",
-                                        scaling_criteria_record.name,
-                                        scaling_criteria_record.scaling_policy.name)
+
+                        for scaling_criteria in scaling_policy['scaling-criteria']:
+                            try:
+                                scaling_criteria_record = ScalingCriteria.select().join(ScalingPolicy).where(
+                                    ScalingPolicy.id == scaling_policy_record.id,
+                                    ScalingCriteria.name == scaling_criteria['name']
+                                ).get()
+                            except ScalingCriteria.DoesNotExist:
+                                log.info("Creating scaling criteria record in DB...")
+                                scaling_criteria_record = ScalingCriteria.create(
+                                    nsr_id=nsr_id,
+                                    name=scaling_criteria['name'],
+                                    scaling_policy=scaling_policy_record
+                                )
+                                log.info(
+                                    "Created scaling criteria record in DB : name=%s, scaling_policy.name=%s",
+                                    scaling_criteria_record.name,
+                                    scaling_criteria_record.scaling_policy.name)
+
+                            for vdu_ref in scaling_group['vdu']:
                                 vnf_monitoring_param = next(
                                     filter(lambda param: param['id'] == scaling_criteria['vnf-monitoring-param-ref'],
                                            vnf_monitoring_params))
-                                # TODO: Add support for non-nfvi metrics
+                                if not vdu_ref['vdu-id-ref'] == vnf_monitoring_param['vdu-ref']:
+                                    continue
+                                vdu = next(
+                                    filter(lambda vdu: vdu['id'] == vdu_ref['vdu-id-ref'], vnfd['vdu'])
+                                )
+                                vdu_monitoring_params = vdu['monitoring-param']
                                 vdu_monitoring_param = next(
                                     filter(
                                         lambda param: param['id'] == vnf_monitoring_param['vdu-monitoring-param-ref'],
@@ -194,12 +203,11 @@ class PolicyModuleAgent:
                                                     vnfr['vdur']))
                                 for vdur in vdurs:
                                     try:
-                                        ScalingAlarm.select().where(
-                                            ScalingAlarm.vdu_name == vdur['name']
-                                        ).where(
-                                            ScalingAlarm.scaling_criteria.name == scaling_criteria['name']
+                                        ScalingAlarm.select().join(ScalingCriteria).where(
+                                            ScalingAlarm.vdu_name == vdur['name'],
+                                            ScalingCriteria.name == scaling_criteria['name']
                                         ).get()
-                                        log.debug("VDU %s already has an alarm configured")
+                                        log.debug("VDU %s already has an alarm configured", vdur['name'])
                                         continue
                                     except ScalingAlarm.DoesNotExist:
                                         pass
