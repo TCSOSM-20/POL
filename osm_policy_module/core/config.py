@@ -65,7 +65,7 @@ class Config(object):
         CfgParam('OSMPOL_DATABASE_DRIVER', "mongo", six.text_type),
         CfgParam('OSMPOL_DATABASE_HOST', "mongo", six.text_type),
         CfgParam('OSMPOL_DATABASE_PORT', 27017, int),
-        CfgParam('OSMPOL_SQL_DATABASE_URI', "sqlite:///mon_sqlite.db", six.text_type),
+        CfgParam('OSMPOL_SQL_DATABASE_URI', "sqlite:///policy_module.db", six.text_type),
         CfgParam('OSMPOL_LOG_LEVEL', "INFO", six.text_type),
         CfgParam('OSMPOL_KAFKA_LOG_LEVEL', "WARN", six.text_type),
     ]

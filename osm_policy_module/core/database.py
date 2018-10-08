@@ -25,14 +25,14 @@ import datetime
 import logging
 
 from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField, AutoField, DateTimeField
-from playhouse.sqlite_ext import SqliteExtDatabase
+from playhouse.db_url import connect
 
 from osm_policy_module.core.config import Config
 
 log = logging.getLogger(__name__)
 cfg = Config.instance()
 
-db = SqliteExtDatabase('policy_module.db')
+db = connect(cfg.OSMPOL_SQL_DATABASE_URI)
 
 
 class BaseModel(Model):
