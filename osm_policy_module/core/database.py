@@ -21,9 +21,10 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
+import datetime
 import logging
 
-from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField, AutoField
+from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField, AutoField, DateTimeField
 from playhouse.sqlite_ext import SqliteExtDatabase
 
 from osm_policy_module.core.config import Config
@@ -49,6 +50,8 @@ class ScalingGroup(BaseModel):
 
 class ScalingPolicy(BaseModel):
     name = CharField()
+    cooldown_time = IntegerField()
+    last_scale = DateTimeField(default=datetime.datetime.min)
     scaling_group = ForeignKeyField(ScalingGroup, related_name='scaling_policies')
 
 

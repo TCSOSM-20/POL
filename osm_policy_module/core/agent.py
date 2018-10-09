@@ -21,6 +21,7 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
+import datetime
 import json
 import logging
 import threading
@@ -99,11 +100,17 @@ class PolicyModuleAgent:
             alarm_id, metric_name, operation, threshold, vdu_name, vnf_member_index, ns_id)
         try:
             alarm = ScalingAlarm.select().where(ScalingAlarm.alarm_id == alarm_id).get()
+            delta = datetime.datetime.now() - alarm.scaling_criteria.scaling_policy.last_scale
+            if delta.total_seconds() < alarm.scaling_criteria.scaling_policy.cooldown_time:
+                log.info("Time between last scale and now is less than cooldown time. Skipping.")
+                return
             log.info("Sending scaling action message for ns: %s", alarm_id)
             self.lcm_client.scale(alarm.scaling_criteria.scaling_policy.scaling_group.nsr_id,
                                   alarm.scaling_criteria.scaling_policy.scaling_group.name,
                                   alarm.vnf_member_index,
                                   alarm.action)
+            alarm.scaling_criteria.scaling_policy.last_scale = datetime.datetime.now()
+            alarm.scaling_criteria.scaling_policy.save()
         except ScalingAlarm.DoesNotExist:
             log.info("There is no action configured for alarm %s.", alarm_id)
 
@@ -161,6 +168,7 @@ class PolicyModuleAgent:
                             scaling_policy_record = ScalingPolicy.create(
                                 nsr_id=nsr_id,
                                 name=scaling_policy['name'],
+                                cooldown_time=scaling_policy['cooldown-time'],
                                 scaling_group=scaling_group_record
                             )
                             log.info("Created scaling policy record in DB : name=%s, scaling_group.name=%s",
