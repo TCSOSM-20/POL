@@ -53,7 +53,8 @@ class MonClient:
         consumer = KafkaConsumer(bootstrap_servers=self.kafka_server,
                                  key_deserializer=bytes.decode,
                                  value_deserializer=bytes.decode,
-                                 consumer_timeout_ms=10000)
+                                 consumer_timeout_ms=10000,
+                                 group_id='mon-client-' + str(uuid.uuid4()))
         consumer.subscribe(['alarm_response'])
         for message in consumer:
             if message.key == 'create_alarm_response':
