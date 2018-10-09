@@ -24,7 +24,7 @@
 from setuptools import setup
 
 _name = 'osm_policy_module'
-_version_command = ('git describe --match v* --tags --long --dirty', 'pep440-git')
+_version_command = ('git describe --match v* --tags --long --dirty', 'pep440-git-full')
 _author = "Benjamín Díaz"
 _author_email = 'bdiaz@whitestack.com'
 _description = 'OSM Policy Module'
