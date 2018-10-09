@@ -35,8 +35,8 @@ class DbClient:
                                    'name': 'osm'})
 
     def get_vnfr(self, nsr_id: str, member_index: int):
-        vnfr = self.common_db.get_one(table="vnfrs",
-                                      filter={"nsr-id-ref": nsr_id, "member-vnf-index-ref": str(member_index)})
+        vnfr = self.common_db.get_one("vnfrs",
+                                      {"nsr-id-ref": nsr_id, "member-vnf-index-ref": str(member_index)})
         return vnfr
 
     def get_vnfrs(self, nsr_id: str):
@@ -44,16 +44,16 @@ class DbClient:
                 self.get_nsr(nsr_id)['nsd']['constituent-vnfd']]
 
     def get_vnfd(self, vnfd_id: str):
-        vnfr = self.common_db.get_one(table="vnfds",
-                                      filter={"_id": vnfd_id})
+        vnfr = self.common_db.get_one("vnfds",
+                                      {"_id": vnfd_id})
         return vnfr
 
     def get_nsr(self, nsr_id: str):
-        nsr = self.common_db.get_one(table="nsrs",
-                                     filter={"id": nsr_id})
+        nsr = self.common_db.get_one("nsrs",
+                                     {"id": nsr_id})
         return nsr
 
     def get_nslcmop(self, nslcmop_id):
-        nslcmop = self.common_db.get_one(table="nslcmops",
-                                         filter={"_id": nslcmop_id})
+        nslcmop = self.common_db.get_one("nslcmops",
+                                         {"_id": nslcmop_id})
         return nslcmop
