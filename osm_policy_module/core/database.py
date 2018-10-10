@@ -44,6 +44,7 @@ class BaseModel(Model):
 
 class ScalingGroup(BaseModel):
     nsr_id = CharField()
+    vnf_member_index = IntegerField()
     name = CharField()
     content = TextField()
 
@@ -51,7 +52,7 @@ class ScalingGroup(BaseModel):
 class ScalingPolicy(BaseModel):
     name = CharField()
     cooldown_time = IntegerField()
-    last_scale = DateTimeField(default=datetime.datetime.min)
+    last_scale = DateTimeField(default=datetime.datetime.now)
     scaling_group = ForeignKeyField(ScalingGroup, related_name='scaling_policies')
 
 

@@ -63,8 +63,8 @@ class PolicyModuleAgent:
             t.start()
 
     def _process_msg(self, topic, key, msg):
+        log.debug("_process_msg topic=%s key=%s msg=%s", topic, key, msg)
         try:
-            log.debug("Message arrived with topic: %s, key: %s, msg: %s", topic, key, msg)
             if key in ALLOWED_KAFKA_KEYS:
                 try:
                     content = json.loads(msg)
@@ -82,6 +82,7 @@ class PolicyModuleAgent:
             log.exception("Error consuming message: ")
 
     def _handle_alarm_notification(self, content):
+        log.debug("_handle_alarm_notification: %s", content)
         alarm_id = content['notify_details']['alarm_uuid']
         metric_name = content['notify_details']['metric_name']
         operation = content['notify_details']['operation']
@@ -101,6 +102,9 @@ class PolicyModuleAgent:
         try:
             alarm = ScalingAlarm.select().where(ScalingAlarm.alarm_id == alarm_id).get()
             delta = datetime.datetime.now() - alarm.scaling_criteria.scaling_policy.last_scale
+            log.debug("last_scale: %s", alarm.scaling_criteria.scaling_policy.last_scale)
+            log.debug("now: %s", datetime.datetime.now())
+            log.debug("delta: %s", delta)
             if delta.total_seconds() < alarm.scaling_criteria.scaling_policy.cooldown_time:
                 log.info("Time between last scale and now is less than cooldown time. Skipping.")
                 return
@@ -115,6 +119,7 @@ class PolicyModuleAgent:
             log.info("There is no action configured for alarm %s.", alarm_id)
 
     def _handle_instantiated_or_scaled(self, content):
+        log.debug("_handle_instantiated_or_scaled: %s", content)
         nslcmop_id = content['nslcmop_id']
         nslcmop = self.db_client.get_nslcmop(nslcmop_id)
         if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':
@@ -128,11 +133,12 @@ class PolicyModuleAgent:
                 nslcmop['operationState'])
 
     def _configure_scaling_groups(self, nsr_id: str):
+        log.debug("_configure_scaling_groups: %s", nsr_id)
         # TODO(diazb): Check for alarm creation on exception and clean resources if needed.
         # TODO: Add support for non-nfvi metrics
         with database.db.atomic():
             vnfrs = self.db_client.get_vnfrs(nsr_id)
-            log.info("Checking %s vnfrs...", len(vnfrs))
+            log.info("Found %s vnfrs", len(vnfrs))
             for vnfr in vnfrs:
                 vnfd = self.db_client.get_vnfd(vnfr['vnfd-id'])
                 log.info("Looking for vnfd %s", vnfr['vnfd-id'])
@@ -142,19 +148,24 @@ class PolicyModuleAgent:
                     try:
                         scaling_group_record = ScalingGroup.select().where(
                             ScalingGroup.nsr_id == nsr_id,
+                            ScalingGroup.vnf_member_index == vnfr['member-vnf-index-ref'],
                             ScalingGroup.name == scaling_group['name']
                         ).get()
+                        log.info("Found existing scaling group record in DB...")
                     except ScalingGroup.DoesNotExist:
                         log.info("Creating scaling group record in DB...")
                         scaling_group_record = ScalingGroup.create(
                             nsr_id=nsr_id,
+                            vnf_member_index=vnfr['member-vnf-index-ref'],
                             name=scaling_group['name'],
                             content=json.dumps(scaling_group)
                         )
-                        log.info("Created scaling group record in DB : nsr_id=%s, name=%s, content=%s",
-                                 scaling_group_record.nsr_id,
-                                 scaling_group_record.name,
-                                 scaling_group_record.content)
+                        log.info(
+                            "Created scaling group record in DB : nsr_id=%s, vnf_member_index=%d, name=%s, content=%s",
+                            scaling_group_record.nsr_id,
+                            scaling_group_record.vnf_member_index,
+                            scaling_group_record.name,
+                            scaling_group_record.content)
                     for scaling_policy in scaling_group['scaling-policy']:
                         if scaling_policy['scaling-type'] != 'automatic':
                             continue
@@ -163,6 +174,7 @@ class PolicyModuleAgent:
                                 ScalingPolicy.name == scaling_policy['name'],
                                 ScalingGroup.id == scaling_group_record.id
                             ).get()
+                            log.info("Found existing scaling policy record in DB...")
                         except ScalingPolicy.DoesNotExist:
                             log.info("Creating scaling policy record in DB...")
                             scaling_policy_record = ScalingPolicy.create(
@@ -181,6 +193,7 @@ class PolicyModuleAgent:
                                     ScalingPolicy.id == scaling_policy_record.id,
                                     ScalingCriteria.name == scaling_criteria['name']
                                 ).get()
+                                log.info("Found existing scaling criteria record in DB...")
                             except ScalingCriteria.DoesNotExist:
                                 log.info("Creating scaling criteria record in DB...")
                                 scaling_criteria_record = ScalingCriteria.create(
@@ -215,7 +228,7 @@ class PolicyModuleAgent:
                                             ScalingAlarm.vdu_name == vdur['name'],
                                             ScalingCriteria.name == scaling_criteria['name']
                                         ).get()
-                                        log.debug("VDU %s already has an alarm configured", vdur['name'])
+                                        log.debug("vdu %s already has an alarm configured", vdur['name'])
                                         continue
                                     except ScalingAlarm.DoesNotExist:
                                         pass

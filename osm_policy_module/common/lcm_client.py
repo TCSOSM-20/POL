@@ -49,6 +49,7 @@ class LcmClient:
                                    'name': 'osm'})
 
     def scale(self, nsr_id: str, scaling_group_name: str, vnf_member_index: int, action: str):
+        log.debug("scale %s %s %s %s", nsr_id, scaling_group_name, vnf_member_index, action)
         nslcmop = self._generate_nslcmop(nsr_id, scaling_group_name, vnf_member_index, action)
         self.common_db.create("nslcmops", nslcmop)
         log.info("Sending scale action message: %s", json.dumps(nslcmop))
@@ -56,6 +57,7 @@ class LcmClient:
         self.producer.flush()
 
     def _generate_nslcmop(self, nsr_id: str, scaling_group_name: str, vnf_member_index: int, action: str):
+        log.debug("_generate_nslcmop %s %s %s %s", nsr_id, scaling_group_name, vnf_member_index, action)
         _id = str(uuid.uuid4())
         now = time.time()
         params = {
