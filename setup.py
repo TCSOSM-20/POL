@@ -47,7 +47,7 @@ setup(
     packages=[_name],
     include_package_data=True,
     install_requires=[
-        "kafka==1.3.*",
+        "aiokafka==0.4.*",
         "peewee==3.1.*",
         "jsonschema==2.6.*",
         "six==1.11.*",

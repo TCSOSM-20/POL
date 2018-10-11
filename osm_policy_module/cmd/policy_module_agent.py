@@ -21,7 +21,7 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
-import argparse
+import asyncio
 import logging
 import sys
 
@@ -32,11 +32,6 @@ from osm_policy_module.core.database import DatabaseManager
 
 def main():
     cfg = Config.instance()
-    parser = argparse.ArgumentParser(prog='pm-scaling-config-agent')
-    parser.add_argument('--config-file', nargs='?', help='Policy module agent configuration file')
-    args = parser.parse_args()
-    if args.config_file:
-        cfg.load_file(args.config_file)
     log_formatter_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(stream=sys.stdout,
                         format=log_formatter_str,
@@ -55,7 +50,8 @@ def main():
     db_manager.create_tables()
     log.info("Database synced correctly.")
     log.info("Starting policy module agent...")
-    agent = PolicyModuleAgent()
+    loop = asyncio.get_event_loop()
+    agent = PolicyModuleAgent(loop)
     agent.run()
 
 

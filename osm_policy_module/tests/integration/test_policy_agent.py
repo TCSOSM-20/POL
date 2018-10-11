@@ -21,6 +21,7 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
+import asyncio
 import logging
 import sys
 import unittest
@@ -413,6 +414,8 @@ class PolicyModuleAgentTest(unittest.TestCase):
         test_db.connect()
         test_db.drop_tables(MODELS)
         test_db.create_tables(MODELS)
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(None)
 
     def tearDown(self):
         super()
@@ -430,7 +433,7 @@ class PolicyModuleAgentTest(unittest.TestCase):
             if '2' in args[1]:
                 return vnfr_record_mocks[1]
 
-        def _test_configure_scaling_groups_create_alarm(*args, **kwargs):
+        async def _test_configure_scaling_groups_create_alarm(*args, **kwargs):
             return uuid.uuid4()
 
         kafka_producer_init.return_value = None
@@ -438,8 +441,8 @@ class PolicyModuleAgentTest(unittest.TestCase):
         get_nsr.return_value = nsr_record_mock
         get_vnfd.return_value = vnfd_record_mock
         create_alarm.side_effect = _test_configure_scaling_groups_create_alarm
-        agent = PolicyModuleAgent()
-        agent._configure_scaling_groups("test_nsr_id")
+        agent = PolicyModuleAgent(self.loop)
+        self.loop.run_until_complete(agent._configure_scaling_groups("test_nsr_id"))
         create_alarm.assert_any_call(metric_name='average_memory_utilization',
                                      ns_id='test_nsr_id',
                                      operation='GT',
