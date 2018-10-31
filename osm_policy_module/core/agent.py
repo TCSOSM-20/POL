@@ -223,10 +223,13 @@ class PolicyModuleAgent:
                                         vnf_monitoring_param = next(
                                             filter(
                                                 lambda param: param['id'] == scaling_criteria[
-                                                    'vnf-monitoring-param-ref'],
+                                                    'vnf-monitoring-param-ref'
+                                                ],
                                                 vnf_monitoring_params)
                                         )
-                                        if not vdu_ref['vdu-id-ref'] == vnf_monitoring_param['vdu-ref']:
+                                        if vdu_ref['vdu-id-ref'] != vnf_monitoring_param['vdu-monitoring-param'][
+                                            'vdu-ref'
+                                        ]:
                                             continue
                                         vdu = next(
                                             filter(lambda vdu: vdu['id'] == vdu_ref['vdu-id-ref'], vnfd['vdu'])
@@ -235,11 +238,17 @@ class PolicyModuleAgent:
                                         vdu_monitoring_param = next(
                                             filter(
                                                 lambda param: param['id'] == vnf_monitoring_param[
-                                                    'vdu-monitoring-param-ref'],
+                                                    'vdu-monitoring-param'
+                                                ][
+                                                    'vdu-monitoring-param-ref'
+                                                ],
                                                 vdu_monitoring_params))
                                         vdurs = list(
-                                            filter(lambda vdur: vdur['vdu-id-ref'] == vnf_monitoring_param['vdu-ref'],
-                                                   vnfr['vdur']))
+                                            filter(lambda vdur: vdur['vdu-id-ref'] == vnf_monitoring_param[
+                                                'vdu-monitoring-param'
+                                            ][
+                                                'vdu-ref'
+                                            ], vnfr['vdur']))
                                         for vdur in vdurs:
                                             try:
                                                 (ScalingAlarm.select()

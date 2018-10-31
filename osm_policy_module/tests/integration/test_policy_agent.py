@@ -326,10 +326,28 @@ vnfd_record_mock = {
             "id": "cirros_vnf_memory_util",
             "name": "cirros_vnf_memory_util",
             "aggregation-type": "AVERAGE",
-            "vdu-monitoring-param-ref": "cirros_vnfd-VM_memory_util",
-            "vdu-ref": "cirros_vnfd-VM"
+            "vdu-monitoring-param": {
+                "vdu-monitoring-param-ref": "cirros_vnfd-VM_memory_util",
+                "vdu-ref": "cirros_vnfd-VM"
+            }
+        },
+        {
+            "id": "haproxy_users",
+            "name": "haproxy_users",
+            "aggregation-type": "AVERAGE",
+            "vnf-metric":
+                {"vnf-metric-name-ref": "users"}
         }
     ],
+    "vdu-configuration": {
+        "juju": {
+            "charm": "testmetrics",
+            "proxy": True
+        },
+        "metrics": {
+            "name": "users"
+        }
+    },
     "description": "Simple VNF example with a cirros and a scaling group descriptor",
     "id": "cirros_vdu_scaling_vnf",
     "logo": "cirros-64.png",

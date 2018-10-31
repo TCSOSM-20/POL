@@ -75,5 +75,5 @@ class DatabaseManager:
             db.connect()
             db.create_tables([ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm])
             db.close()
-        except Exception as e:
+        except Exception:
             log.exception("Error creating tables: ")
