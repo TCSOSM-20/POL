@@ -77,3 +77,6 @@ class DatabaseManager:
             db.close()
         except Exception:
             log.exception("Error creating tables: ")
+
+    def get_alarm(self, alarm_id: str):
+        return ScalingAlarm.select().where(ScalingAlarm.alarm_id == alarm_id).get()
