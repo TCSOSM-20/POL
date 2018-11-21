@@ -74,7 +74,7 @@ class MonClient:
                 if message.key == 'create_alarm_response':
                     content = json.loads(message.value)
                     log.info("Received create_alarm_response %s", content)
-                    if self._is_alarm_response_correlation_id_eq(cor_id, content):
+                    if content['alarm_create_response']['correlation_id'] == cor_id:
                         if not content['alarm_create_response']['status']:
                             raise ValueError("Error creating alarm in MON")
                         alarm_uuid = content['alarm_create_response']['alarm_uuid']
@@ -112,7 +112,7 @@ class MonClient:
                 if message.key == 'delete_alarm_response':
                     content = json.loads(message.value)
                     log.info("Received delete_alarm_response %s", content)
-                    if self._is_alarm_response_correlation_id_eq(cor_id, content):
+                    if content['alarm_delete_response']['correlation_id'] == cor_id:
                         if not content['alarm_delete_response']['status']:
                             raise ValueError("Error deleting alarm in MON")
                         alarm_uuid = content['alarm_delete_response']['alarm_uuid']
@@ -155,6 +155,3 @@ class MonClient:
             'alarm_delete_request': alarm_delete_request,
         }
         return msg
-
-    def _is_alarm_response_correlation_id_eq(self, cor_id, message_content):
-        return message_content['alarm_create_response']['correlation_id'] == cor_id

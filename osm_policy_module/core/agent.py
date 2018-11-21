@@ -39,7 +39,7 @@ from osm_policy_module.core.database import ScalingGroup, ScalingAlarm, ScalingP
 
 log = logging.getLogger(__name__)
 
-ALLOWED_KAFKA_KEYS = ['instantiated', 'scaled', 'notify_alarm']
+ALLOWED_KAFKA_KEYS = ['instantiated', 'scaled', 'terminated', 'notify_alarm']
 
 
 class PolicyModuleAgent:
@@ -71,6 +71,7 @@ class PolicyModuleAgent:
         await consumer.start()
         try:
             async for msg in consumer:
+                log.info("Message arrived: %s", msg)
                 await self._process_msg(msg.topic, msg.key, msg.value)
         finally:
             await consumer.stop()
@@ -87,6 +88,9 @@ class PolicyModuleAgent:
                 if key == 'instantiated' or key == 'scaled':
                     await self._handle_instantiated_or_scaled(content)
 
+                if key == 'terminated':
+                    await self._handle_terminated(content)
+
                 if key == 'notify_alarm':
                     await self._handle_alarm_notification(content)
             else:
@@ -96,13 +100,13 @@ class PolicyModuleAgent:
 
     async def _handle_alarm_notification(self, content):
         log.debug("_handle_alarm_notification: %s", content)
-        alarm_id = content['notify_details']['alarm_uuid']
+        alarm_uuid = content['notify_details']['alarm_uuid']
         metric_name = content['notify_details']['metric_name']
         operation = content['notify_details']['operation']
         threshold = content['notify_details']['threshold_value']
         vdu_name = content['notify_details']['vdu_name']
         vnf_member_index = content['notify_details']['vnf_member_index']
-        ns_id = content['notify_details']['ns_id']
+        nsr_id = content['notify_details']['ns_id']
         log.info(
             "Received alarm notification for alarm %s, \
             metric %s, \
@@ -111,9 +115,9 @@ class PolicyModuleAgent:
             vdu_name %s, \
             vnf_member_index %s, \
             ns_id %s ",
-            alarm_id, metric_name, operation, threshold, vdu_name, vnf_member_index, ns_id)
+            alarm_uuid, metric_name, operation, threshold, vdu_name, vnf_member_index, nsr_id)
         try:
-            alarm = self.database_manager.get_alarm(alarm_id)
+            alarm = self.database_manager.get_alarm(alarm_uuid)
             delta = datetime.datetime.now() - alarm.scaling_criteria.scaling_policy.last_scale
             log.debug("last_scale: %s", alarm.scaling_criteria.scaling_policy.last_scale)
             log.debug("now: %s", datetime.datetime.now())
@@ -121,15 +125,15 @@ class PolicyModuleAgent:
             if delta.total_seconds() < alarm.scaling_criteria.scaling_policy.cooldown_time:
                 log.info("Time between last scale and now is less than cooldown time. Skipping.")
                 return
-            log.info("Sending scaling action message for ns: %s", alarm_id)
-            await self.lcm_client.scale(ns_id,
+            log.info("Sending scaling action message for ns: %s", nsr_id)
+            await self.lcm_client.scale(nsr_id,
                                         alarm.scaling_criteria.scaling_policy.scaling_group.name,
                                         alarm.vnf_member_index,
                                         alarm.action)
             alarm.scaling_criteria.scaling_policy.last_scale = datetime.datetime.now()
             alarm.scaling_criteria.scaling_policy.save()
         except ScalingAlarm.DoesNotExist:
-            log.info("There is no action configured for alarm %s.", alarm_id)
+            log.info("There is no action configured for alarm %s.", alarm_uuid)
 
     async def _handle_instantiated_or_scaled(self, content):
         log.debug("_handle_instantiated_or_scaled: %s", content)
@@ -145,9 +149,20 @@ class PolicyModuleAgent:
                 "Current state is %s. Skipping...",
                 nslcmop['operationState'])
 
+    async def _handle_terminated(self, content):
+        log.debug("_handle_deleted: %s", content)
+        nsr_id = content['nsr_id']
+        if content['operationState'] == 'COMPLETED' or content['operationState'] == 'PARTIALLY_COMPLETED':
+            log.info("Deleting scaling groups and alarms for network service with nsr_id: %s", nsr_id)
+            await self._delete_scaling_groups(nsr_id)
+        else:
+            log.info(
+                "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "
+                "Current state is %s. Skipping...",
+                content['operationState'])
+
     async def _configure_scaling_groups(self, nsr_id: str):
         log.debug("_configure_scaling_groups: %s", nsr_id)
-        # TODO: Add support for non-nfvi metrics
         alarms_created = []
         with database.db.atomic() as tx:
             try:
@@ -280,13 +295,14 @@ class PolicyModuleAgent:
                                         operation=scaling_criteria['scale-in-relational-operation'],
                                         statistic=vnf_monitoring_param['aggregation-type']
                                     )
-                                    ScalingAlarm.create(
-                                        alarm_id=alarm_uuid,
+                                    alarm = ScalingAlarm.create(
+                                        alarm_uuid=alarm_uuid,
                                         action='scale_in',
                                         vnf_member_index=int(vnfr['member-vnf-index-ref']),
                                         vdu_name=vdur['name'],
                                         scaling_criteria=scaling_criteria_record
                                     )
+                                    alarms_created.append(alarm)
                                     alarm_uuid = await self.mon_client.create_alarm(
                                         metric_name=vnf_monitoring_param['id'],
                                         ns_id=nsr_id,
@@ -296,13 +312,14 @@ class PolicyModuleAgent:
                                         operation=scaling_criteria['scale-out-relational-operation'],
                                         statistic=vnf_monitoring_param['aggregation-type']
                                     )
-                                    ScalingAlarm.create(
-                                        alarm_id=alarm_uuid,
+                                    alarm = ScalingAlarm.create(
+                                        alarm_uuid=alarm_uuid,
                                         action='scale_out',
                                         vnf_member_index=int(vnfr['member-vnf-index-ref']),
                                         vdu_name=vdur['name'],
                                         scaling_criteria=scaling_criteria_record
                                     )
+                                    alarms_created.append(alarm)
 
             except Exception as e:
                 log.exception("Error configuring scaling groups:")
@@ -310,5 +327,33 @@ class PolicyModuleAgent:
                 if len(alarms_created) > 0:
                     log.info("Cleaning alarm resources in MON")
                     for alarm in alarms_created:
-                        await self.mon_client.delete_alarm(*alarm)
+                        await self.mon_client.delete_alarm(alarm.scaling_criteria.scaling_policy.scaling_group.nsr_id,
+                                                           alarm.vnf_member_index,
+                                                           alarm.vdu_name,
+                                                           alarm.alarm_uuid)
+                raise e
+
+    async def _delete_scaling_groups(self, nsr_id: str):
+        with database.db.atomic() as tx:
+            try:
+                for scaling_group in ScalingGroup.select().where(ScalingGroup.nsr_id == nsr_id):
+                    for scaling_policy in scaling_group.scaling_policies:
+                        for scaling_criteria in scaling_policy.scaling_criterias:
+                            for alarm in scaling_criteria.scaling_alarms:
+                                try:
+                                    await self.mon_client.delete_alarm(
+                                        alarm.scaling_criteria.scaling_policy.scaling_group.nsr_id,
+                                        alarm.vnf_member_index,
+                                        alarm.vdu_name,
+                                        alarm.alarm_uuid)
+                                except ValueError:
+                                    log.exception("Error deleting alarm in MON %s", alarm.alarm_uuid)
+                                alarm.delete_instance()
+                            scaling_criteria.delete_instance()
+                        scaling_policy.delete_instance()
+                    scaling_group.delete_instance()
+
+            except Exception as e:
+                log.exception("Error deleting scaling groups and alarms:")
+                tx.rollback()
                 raise e

@@ -53,20 +53,20 @@ class ScalingPolicy(BaseModel):
     name = CharField()
     cooldown_time = IntegerField()
     last_scale = DateTimeField(default=datetime.datetime.now)
-    scaling_group = ForeignKeyField(ScalingGroup, related_name='scaling_policies')
+    scaling_group = ForeignKeyField(ScalingGroup, related_name='scaling_policies', on_delete='CASCADE')
 
 
 class ScalingCriteria(BaseModel):
     name = CharField()
-    scaling_policy = ForeignKeyField(ScalingPolicy, related_name='scaling_criterias')
+    scaling_policy = ForeignKeyField(ScalingPolicy, related_name='scaling_criterias', on_delete='CASCADE')
 
 
 class ScalingAlarm(BaseModel):
-    alarm_id = CharField()
+    alarm_uuid = CharField(unique=True)
     action = CharField()
     vnf_member_index = IntegerField()
     vdu_name = CharField()
-    scaling_criteria = ForeignKeyField(ScalingCriteria, related_name='scaling_alarms')
+    scaling_criteria = ForeignKeyField(ScalingCriteria, related_name='scaling_alarms', on_delete='CASCADE')
 
 
 class DatabaseManager:
@@ -78,5 +78,5 @@ class DatabaseManager:
         except Exception:
             log.exception("Error creating tables: ")
 
-    def get_alarm(self, alarm_id: str):
-        return ScalingAlarm.select().where(ScalingAlarm.alarm_id == alarm_id).get()
+    def get_alarm(self, alarm_uuid: str):
+        return ScalingAlarm.select().where(ScalingAlarm.alarm_uuid == alarm_uuid).get()
