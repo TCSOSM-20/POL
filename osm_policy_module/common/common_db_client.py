@@ -30,8 +30,7 @@ class CommonDbClient:
     def __init__(self):
         cfg = Config.instance()
         self.common_db = dbmongo.DbMongo()
-        self.common_db.db_connect({'host': cfg.OSMPOL_DATABASE_HOST,
-                                   'port': int(cfg.OSMPOL_DATABASE_PORT),
+        self.common_db.db_connect({'uri': cfg.OSMPOL_DATABASE_URI,
                                    'name': 'osm'})
 
     def get_vnfr(self, nsr_id: str, member_index: int):
