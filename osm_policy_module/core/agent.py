@@ -36,6 +36,7 @@ from osm_policy_module.common.mon_client import MonClient
 from osm_policy_module.core import database
 from osm_policy_module.core.config import Config
 from osm_policy_module.core.database import ScalingGroup, ScalingAlarm, ScalingPolicy, ScalingCriteria, DatabaseManager
+from osm_policy_module.utils.vnfd import VnfdUtils
 
 log = logging.getLogger(__name__)
 
@@ -262,8 +263,13 @@ class PolicyModuleAgent:
                                         )
                                     )
                                 elif 'vnf-metric' in vnf_monitoring_param:
-                                    log.warning("vnf-metric is not currently supported.")
-                                    continue
+                                    vdu = VnfdUtils.get_mgmt_vdu(vnfd)
+                                    vdurs = list(
+                                        filter(
+                                            lambda vdur: vdur['vdu-id-ref'] == vdu['id'],
+                                            vnfr['vdur']
+                                        )
+                                    )
                                 else:
                                     log.warning(
                                         "Scaling criteria is referring to a vnf-monitoring-param that does not "

@@ -8,9 +8,9 @@ vnfd:vnfd-catalog:
         version: '1.0'
         # Place the logo as png in icons directory and provide the name here
         logo: cirros-64.png
-        # Management interface
+        # Management vdu id
         mgmt-interface:
-            cp: eth0
+            vdu-id: cirros_vnfd-VM
         # Atleast one VDU need to be specified
         vdu:
         -   id: cirros_vnfd-VM
@@ -38,8 +38,8 @@ vnfd:vnfd-catalog:
                     vpci: 0000:00:0a.0
                 external-connection-point-ref: eth0
             monitoring-param:
-            -   id: "cirros_vnfd-VM_memory_util"
-                nfvi-metric: "average_memory_utilization" # The associated NFVI metric to be monitored. Id of the metric
+            -   id: "cirros_vnfd-VM_cpu_util"
+                nfvi-metric: "cpu_utilization" # The associated NFVI metric to be monitored. Id of the metric
                 #interface-name-ref: reference to interface name, required for some metrics
         connection-point:
         -   name: eth0
@@ -49,17 +49,17 @@ vnfd:vnfd-catalog:
             min-instance-count: 1
             max-instance-count: 10
             scaling-policy:
-            -   name: "auto_memory_util_above_threshold"
+            -   name: "auto_cpu_util_above_threshold"
                 scaling-type: "automatic"
                 threshold-time: 10
                 cooldown-time: 60
                 scaling-criteria:
-                -   name: "group1_memory_util_above_threshold"
+                -   name: "group1_cpu_util_above_threshold"
                     scale-in-threshold: 20
                     scale-in-relational-operation: "LT"
                     scale-out-threshold: 80
                     scale-out-relational-operation: "GT"
-                    vnf-monitoring-param-ref: "cirros_vnf_memory_util"
+                    vnf-monitoring-param-ref: "cirros_vnf_cpu_util"
             vdu:
             -   vdu-id-ref: cirros_vnfd-VM
                 count: 1
@@ -67,8 +67,9 @@ vnfd:vnfd-catalog:
             # -   trigger: post-scale-out
             #     vnf-config-primitive-name-ref:
         monitoring-param:
-        -   id: "cirros_vnf_memory_util"
-            name: "cirros_vnf_memory_util"
+        -   id: "cirros_vnf_cpu_util"
+            name: "cirros_vnf_cpu_util"
             aggregation-type: AVERAGE
-            vdu-ref: "cirros_vnfd-VM"
-            vdu-monitoring-param-ref: "cirros_vnfd-VM_memory_util"
+            vdu-monitoring-param:
+              vdu-ref: "cirros_vnfd-VM"
+              vdu-monitoring-param-ref: "cirros_vnfd-VM_cpu_util"
