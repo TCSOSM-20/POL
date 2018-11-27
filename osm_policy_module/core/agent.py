@@ -36,6 +36,7 @@ from osm_policy_module.common.mon_client import MonClient
 from osm_policy_module.core import database
 from osm_policy_module.core.config import Config
 from osm_policy_module.core.database import ScalingGroup, ScalingAlarm, ScalingPolicy, ScalingCriteria, DatabaseManager
+from osm_policy_module.core.exceptions import VdurNotFound
 from osm_policy_module.utils.vnfd import VnfdUtils
 
 log = logging.getLogger(__name__)
@@ -144,6 +145,8 @@ class PolicyModuleAgent:
             nsr_id = nslcmop['nsInstanceId']
             log.info("Configuring scaling groups for network service with nsr_id: %s", nsr_id)
             await self._configure_scaling_groups(nsr_id)
+            log.info("Checking for orphaned alarms to be deleted for network service with nsr_id: %s", nsr_id)
+            await self._delete_orphaned_alarms(nsr_id)
         else:
             log.info(
                 "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "
@@ -361,5 +364,31 @@ class PolicyModuleAgent:
 
             except Exception as e:
                 log.exception("Error deleting scaling groups and alarms:")
+                tx.rollback()
+                raise e
+
+    async def _delete_orphaned_alarms(self, nsr_id):
+        with database.db.atomic() as tx:
+            try:
+                for scaling_group in ScalingGroup.select().where(ScalingGroup.nsr_id == nsr_id):
+                    for scaling_policy in scaling_group.scaling_policies:
+                        for scaling_criteria in scaling_policy.scaling_criterias:
+                            for alarm in scaling_criteria.scaling_alarms:
+                                try:
+                                    self.db_client.get_vdur(nsr_id, alarm.vnf_member_index, alarm.vdu_name)
+                                except VdurNotFound:
+                                    log.info("Deleting orphaned alarm %s", alarm.alarm_uuid)
+                                    try:
+                                        await self.mon_client.delete_alarm(
+                                            alarm.scaling_criteria.scaling_policy.scaling_group.nsr_id,
+                                            alarm.vnf_member_index,
+                                            alarm.vdu_name,
+                                            alarm.alarm_uuid)
+                                    except ValueError:
+                                        log.exception("Error deleting alarm in MON %s", alarm.alarm_uuid)
+                                    alarm.delete_instance()
+
+            except Exception as e:
+                log.exception("Error deleting orphaned alarms:")
                 tx.rollback()
                 raise e

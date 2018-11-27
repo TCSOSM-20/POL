@@ -25,3 +25,7 @@
 
 class ManagementVduNotFound(Exception):
     pass
+
+
+class VdurNotFound(Exception):
+    pass

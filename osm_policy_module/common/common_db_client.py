@@ -24,6 +24,7 @@
 from osm_common import dbmongo
 
 from osm_policy_module.core.config import Config
+from osm_policy_module.core.exceptions import VdurNotFound
 
 
 class CommonDbClient:
@@ -56,3 +57,11 @@ class CommonDbClient:
         nslcmop = self.common_db.get_one("nslcmops",
                                          {"_id": nslcmop_id})
         return nslcmop
+
+    def get_vdur(self, nsr_id, member_index, vdur_name):
+        vnfr = self.get_vnfr(nsr_id, member_index)
+        for vdur in vnfr['vdur']:
+            if vdur['name'] == vdur_name:
+                return vdur
+        raise VdurNotFound('vdur not found for nsr-id %s, member_index %s and vdur_name %s', nsr_id, member_index,
+                           vdur_name)
