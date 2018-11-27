@@ -42,8 +42,7 @@ class LcmClient:
         self.kafka_server = '{}:{}'.format(cfg.OSMPOL_MESSAGE_HOST,
                                            cfg.OSMPOL_MESSAGE_PORT)
         self.common_db = dbmongo.DbMongo()
-        self.common_db.db_connect({'host': cfg.OSMPOL_DATABASE_HOST,
-                                   'port': int(cfg.OSMPOL_DATABASE_PORT),
+        self.common_db.db_connect({'uri': cfg.OSMPOL_DATABASE_URI,
                                    'name': 'osm'})
         if not loop:
             loop = asyncio.get_event_loop()
