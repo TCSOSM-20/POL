@@ -71,12 +71,9 @@ class ScalingAlarm(BaseModel):
 
 class DatabaseManager:
     def create_tables(self):
-        try:
-            db.connect()
-            db.create_tables([ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm])
-            db.close()
-        except Exception:
-            log.exception("Error creating tables: ")
+        db.connect()
+        db.create_tables([ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm])
+        db.close()
 
     def get_alarm(self, alarm_uuid: str):
         return ScalingAlarm.select().where(ScalingAlarm.alarm_uuid == alarm_uuid).get()
