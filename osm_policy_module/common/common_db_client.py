@@ -21,18 +21,21 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
-from osm_common import dbmongo
+from osm_common import dbmongo, dbmemory
 
 from osm_policy_module.core.config import Config
 from osm_policy_module.core.exceptions import VdurNotFound
 
 
 class CommonDbClient:
-    def __init__(self):
-        cfg = Config.instance()
-        self.common_db = dbmongo.DbMongo()
-        self.common_db.db_connect({'uri': cfg.OSMPOL_DATABASE_URI,
-                                   'name': 'osm'})
+    def __init__(self, config: Config):
+        if config.get('database', 'driver') == "mongo":
+            self.common_db = dbmongo.DbMongo()
+        elif config.get('database', 'driver') == "memory":
+            self.common_db = dbmemory.DbMemory()
+        else:
+            raise Exception("Unknown database driver {}".format(config.get('section', 'driver')))
+        self.common_db.db_connect(config.get("database"))
 
     def get_vnfr(self, nsr_id: str, member_index: int):
         vnfr = self.common_db.get_one("vnfrs",
@@ -65,3 +68,6 @@ class CommonDbClient:
                 return vdur
         raise VdurNotFound('vdur not found for nsr-id %s, member_index %s and vdur_name %s', nsr_id, member_index,
                            vdur_name)
+
+    def create_nslcmop(self, nslcmop):
+        self.common_db.create("nslcmops", nslcmop)

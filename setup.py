@@ -45,6 +45,7 @@ setup(
     url=_url,
     license=_license,
     packages=[_name],
+    package_dir={_name: _name},
     include_package_data=True,
     install_requires=[
         "aiokafka==0.4.*",
@@ -52,7 +53,8 @@ setup(
         "jsonschema==2.6.*",
         "six==1.11.*",
         "pyyaml==3.*",
-        "osm-common"
+        "pymysql",
+        "osm-common",
     ],
     entry_points={
         "console_scripts": [

@@ -42,11 +42,10 @@ log.addHandler(stream_handler)
 class KafkaMessagesTest(unittest.TestCase):
     def setUp(self):
         super()
-        cfg = Config.instance()
-        self.kafka_server = '{}:{}'.format(cfg.OSMPOL_MESSAGE_HOST,
-                                           cfg.OSMPOL_MESSAGE_PORT)
+        cfg = Config()
+        self.kafka_server = '{}:{}'.format(cfg.get('message', 'host'),
+                                           cfg.get('message', 'port'))
         self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(None)
 
     def tearDown(self):
         super()

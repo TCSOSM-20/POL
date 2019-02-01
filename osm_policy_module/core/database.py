@@ -24,15 +24,14 @@
 import datetime
 import logging
 
-from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField, AutoField, DateTimeField
+from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField, AutoField, DateTimeField, Proxy
 from playhouse.db_url import connect
 
 from osm_policy_module.core.config import Config
 
 log = logging.getLogger(__name__)
-cfg = Config.instance()
 
-db = connect(cfg.OSMPOL_SQL_DATABASE_URI)
+db = Proxy()
 
 
 class BaseModel(Model):
@@ -70,10 +69,14 @@ class ScalingAlarm(BaseModel):
 
 
 class DatabaseManager:
+    def init_db(self, config: Config):
+        db.initialize(connect(config.get('sql', 'database_uri')))
+        self.create_tables()
+
     def create_tables(self):
-        db.connect()
-        db.create_tables([ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm])
-        db.close()
+        with db.atomic():
+            db.create_tables([ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm])
 
     def get_alarm(self, alarm_uuid: str):
-        return ScalingAlarm.select().where(ScalingAlarm.alarm_uuid == alarm_uuid).get()
+        with db.atomic():
+            return ScalingAlarm.select().where(ScalingAlarm.alarm_uuid == alarm_uuid).get()

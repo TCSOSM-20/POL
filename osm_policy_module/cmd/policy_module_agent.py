@@ -21,6 +21,7 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
+import argparse
 import asyncio
 import logging
 import sys
@@ -31,27 +32,28 @@ from osm_policy_module.core.database import DatabaseManager
 
 
 def main():
-    cfg = Config.instance()
-    log_formatter_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(stream=sys.stdout,
-                        format=log_formatter_str,
-                        datefmt='%m/%d/%Y %I:%M:%S %p',
-                        level=logging.getLevelName(cfg.OSMPOL_LOG_LEVEL))
-    kafka_logger = logging.getLogger('kafka')
-    kafka_logger.setLevel(logging.getLevelName(cfg.OSMPOL_KAFKA_LOG_LEVEL))
-    kafka_formatter = logging.Formatter(log_formatter_str)
-    kafka_handler = logging.StreamHandler(sys.stdout)
-    kafka_handler.setFormatter(kafka_formatter)
-    kafka_logger.addHandler(kafka_handler)
+    parser = argparse.ArgumentParser(prog='osm-policy-agent')
+    parser.add_argument('--config-file', nargs='?', help='POL configuration file')
+    args = parser.parse_args()
+    cfg = Config(args.config_file)
+
+    root = logging.getLogger()
+    root.setLevel(logging.getLevelName(cfg.get('global', 'loglevel')))
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(logging.getLevelName(cfg.get('global', 'loglevel')))
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', '%m/%d/%Y %I:%M:%S %p')
+    ch.setFormatter(formatter)
+    root.addHandler(ch)
+
     log = logging.getLogger(__name__)
-    log.info("Config: %s", vars(cfg))
-    log.info("Syncing database...")
+    log.debug("Config: %s", cfg.conf)
+    log.info("Initializing database...")
     db_manager = DatabaseManager()
-    db_manager.create_tables()
-    log.info("Database synced correctly.")
+    db_manager.init_db(cfg)
+    log.info("Database initialized correctly.")
     log.info("Starting policy module agent...")
     loop = asyncio.get_event_loop()
-    agent = PolicyModuleAgent(loop)
+    agent = PolicyModuleAgent(cfg, loop)
     agent.run()
 
 

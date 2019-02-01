@@ -26,64 +26,48 @@
 import logging
 import os
 
-from collections import namedtuple
+import pkg_resources
+import yaml
 
-import six
-
-from osm_policy_module.core.singleton import Singleton
-
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
-class BadConfigError(Exception):
-    """Configuration exception."""
+class Config:
+    def __init__(self, config_file: str = ''):
+        self.conf = {}
+        self._read_config_file(config_file)
+        self._read_env()
 
-    pass
+    def _read_config_file(self, config_file):
+        if not config_file:
+            path = 'pol.yaml'
+            config_file = pkg_resources.resource_filename(__name__, path)
+        with open(config_file) as f:
+            self.conf = yaml.load(f)
 
+    def get(self, section, field=None):
+        if not field:
+            return self.conf[section]
+        return self.conf[section][field]
 
-class CfgParam(namedtuple('CfgParam', ['key', 'default', 'data_type'])):
-    """Configuration parameter definition."""
+    def set(self, section, field, value):
+        if section not in self.conf:
+            self.conf[section] = {}
+        self.conf[section][field] = value
 
-    def value(self, data):
-        """Convert a string to the parameter type."""
-        try:
-            return self.data_type(data)
-        except (ValueError, TypeError):
-            raise BadConfigError(
-                'Invalid value "%s" for configuration parameter "%s"' % (
-                    data, self.key))
-
-
-@Singleton
-class Config(object):
-    """Configuration object."""
-
-    _configuration = [
-        CfgParam('OSMPOL_MESSAGE_DRIVER', "kafka", six.text_type),
-        CfgParam('OSMPOL_MESSAGE_HOST', "localhost", six.text_type),
-        CfgParam('OSMPOL_MESSAGE_PORT', 9092, int),
-        CfgParam('OSMPOL_DATABASE_DRIVER', "mongo", six.text_type),
-        CfgParam('OSMPOL_DATABASE_URI', "mongodb://mongo:27017", six.text_type),
-        CfgParam('OSMPOL_SQL_DATABASE_URI', "sqlite:///policy_module.db", six.text_type),
-        CfgParam('OSMPOL_LOG_LEVEL', "INFO", six.text_type),
-        CfgParam('OSMPOL_KAFKA_LOG_LEVEL', "WARN", six.text_type),
-    ]
-
-    _config_dict = {cfg.key: cfg for cfg in _configuration}
-    _config_keys = _config_dict.keys()
-
-    def __init__(self):
-        """Set the default values."""
-        for cfg in self._configuration:
-            setattr(self, cfg.key, cfg.default)
-        self.read_environ()
-
-    def read_environ(self):
-        """Check the appropriate environment variables and update defaults."""
-        for key in self._config_keys:
-            try:
-                val = self._config_dict[key].data_type(os.environ[key])
-                setattr(self, key, val)
-            except KeyError as exc:
-                log.debug("Environment variable not present: %s", exc)
-        return
+    def _read_env(self):
+        for env in os.environ:
+            if not env.startswith("OSMPOL_"):
+                continue
+            elements = env.lower().split("_")
+            if len(elements) < 3:
+                logger.warning(
+                    "Environment variable %s=%s does not comply with required format. Section and/or field missing.",
+                    env, os.getenv(env))
+                continue
+            section = elements[1]
+            field = '_'.join(elements[2:])
+            value = os.getenv(env)
+            if section not in self.conf:
+                self.conf[section] = {}
+            self.conf[section][field] = value

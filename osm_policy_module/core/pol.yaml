@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Copyright 2018 Whitestack, LLC
 # *************************************************************
 
@@ -21,22 +19,20 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
-"""Simple singleton class."""
 
-from __future__ import unicode_literals
+global:
+  loglevel: INFO
 
+database:
+  driver: mongo
+  uri: mongodb://mongo:27017
+  name: osm
 
-class Singleton(object):
-    """Simple singleton class."""
+message:
+  driver: kafka
+  host: kafka
+  port: 9092
+  group_id: pol-consumer
 
-    def __init__(self, decorated):
-        """Initialize singleton instance."""
-        self._decorated = decorated
-
-    def instance(self):
-        """Return singleton instance."""
-        try:
-            return self._instance
-        except AttributeError:
-            self._instance = self._decorated()
-            return self._instance
+sql:
+  database_uri: sqlite:///policy_module.db

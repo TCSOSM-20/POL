@@ -36,10 +36,9 @@ log = logging.getLogger(__name__)
 
 
 class MonClient:
-    def __init__(self, loop=None):
-        cfg = Config.instance()
-        self.kafka_server = '{}:{}'.format(cfg.OSMPOL_MESSAGE_HOST,
-                                           cfg.OSMPOL_MESSAGE_PORT)
+    def __init__(self, config: Config, loop=None):
+        self.kafka_server = '{}:{}'.format(config.get('message', 'host'),
+                                           config.get('message', 'port'))
         if not loop:
             loop = asyncio.get_event_loop()
         self.loop = loop

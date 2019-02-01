@@ -28,23 +28,29 @@ from unittest import mock
 from unittest.mock import Mock
 
 from osm_policy_module.core.agent import PolicyModuleAgent
+from osm_policy_module.core.config import Config
 from osm_policy_module.core.database import DatabaseManager
 
 
 class PolicyAgentTest(unittest.TestCase):
     def setUp(self):
         self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(None)
 
     @mock.patch('osm_policy_module.core.agent.CommonDbClient')
     @mock.patch('osm_policy_module.core.agent.MonClient')
     @mock.patch('osm_policy_module.core.agent.LcmClient')
     @mock.patch.object(PolicyModuleAgent, '_configure_scaling_groups')
-    def test_handle_instantiated_or_scaled(self, configure_scaling_groups, lcm_client, mon_client, db_client):
+    @mock.patch.object(PolicyModuleAgent, '_delete_orphaned_alarms')
+    def test_handle_instantiated(self, delete_orphaned_alarms, configure_scaling_groups, lcm_client,
+                                 mon_client, db_client):
         async def mock_configure_scaling_groups(nsr_id):
             pass
 
-        agent = PolicyModuleAgent(self.loop)
+        async def mock_delete_orphaned_alarms(nsr_id):
+            pass
+
+        config = Config()
+        agent = PolicyModuleAgent(config, self.loop)
         assert lcm_client.called
         assert mon_client.called
         assert db_client.called
@@ -60,14 +66,15 @@ class PolicyAgentTest(unittest.TestCase):
             'nsInstanceId': 'test_nsr_id'
         }
         configure_scaling_groups.side_effect = mock_configure_scaling_groups
+        delete_orphaned_alarms.side_effect = mock_delete_orphaned_alarms
 
         db_client.return_value.get_nslcmop.return_value = nslcmop_completed
-        self.loop.run_until_complete(agent._handle_instantiated_or_scaled(content))
+        self.loop.run_until_complete(agent._handle_instantiated(content))
         configure_scaling_groups.assert_called_with('test_nsr_id')
         configure_scaling_groups.reset_mock()
 
         db_client.return_value.get_nslcmop.return_value = nslcmop_failed
-        self.loop.run_until_complete(agent._handle_instantiated_or_scaled(content))
+        self.loop.run_until_complete(agent._handle_instantiated(content))
         configure_scaling_groups.assert_not_called()
 
     @mock.patch('osm_policy_module.core.agent.CommonDbClient')
@@ -78,7 +85,8 @@ class PolicyAgentTest(unittest.TestCase):
         async def mock_scale(nsr_id, scaling_group_name, vnf_member_index, action):
             pass
 
-        agent = PolicyModuleAgent(self.loop)
+        config = Config()
+        agent = PolicyModuleAgent(config, self.loop)
         assert lcm_client.called
         assert mon_client.called
         assert db_client.called

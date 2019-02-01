@@ -25,14 +25,12 @@ import asyncio
 import datetime
 import json
 import logging
-from json import JSONDecodeError
 
 import peewee
-import yaml
-from aiokafka import AIOKafkaConsumer
 
 from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.common.lcm_client import LcmClient
+from osm_policy_module.common.message_bus_client import MessageBusClient
 from osm_policy_module.common.mon_client import MonClient
 from osm_policy_module.core import database
 from osm_policy_module.core.config import Config
@@ -46,57 +44,45 @@ ALLOWED_KAFKA_KEYS = ['instantiated', 'scaled', 'terminated', 'notify_alarm']
 
 
 class PolicyModuleAgent:
-    def __init__(self, loop=None):
-        cfg = Config.instance()
+    def __init__(self, config: Config, loop=None):
+        self.conf = config
         if not loop:
             loop = asyncio.get_event_loop()
         self.loop = loop
-        self.db_client = CommonDbClient()
-        self.mon_client = MonClient(loop=self.loop)
-        self.lcm_client = LcmClient(loop=self.loop)
-        self.kafka_server = '{}:{}'.format(cfg.OSMPOL_MESSAGE_HOST,
-                                           cfg.OSMPOL_MESSAGE_PORT)
+        self.db_client = CommonDbClient(config)
+        self.mon_client = MonClient(config, loop=self.loop)
+        self.lcm_client = LcmClient(config, loop=self.loop)
         self.database_manager = DatabaseManager()
+        self.msg_bus = MessageBusClient(config)
 
     def run(self):
         self.loop.run_until_complete(self.start())
 
     async def start(self):
-        consumer = AIOKafkaConsumer(
+        topics = [
             "ns",
-            "alarm_response",
-            loop=self.loop,
-            bootstrap_servers=self.kafka_server,
-            group_id="pol-consumer",
-            key_deserializer=bytes.decode,
-            value_deserializer=bytes.decode,
-        )
-        await consumer.start()
-        try:
-            async for msg in consumer:
-                log.info("Message arrived: %s", msg)
-                await self._process_msg(msg.topic, msg.key, msg.value)
-        finally:
-            await consumer.stop()
+            "alarm_response"
+        ]
+        await self.msg_bus.aioread(topics, self._process_msg)
         log.critical("Exiting...")
 
     async def _process_msg(self, topic, key, msg):
         log.debug("_process_msg topic=%s key=%s msg=%s", topic, key, msg)
+        log.info("Message arrived: %s", msg)
         try:
             if key in ALLOWED_KAFKA_KEYS:
-                try:
-                    content = json.loads(msg)
-                except JSONDecodeError:
-                    content = yaml.safe_load(msg)
 
-                if key == 'instantiated' or key == 'scaled':
-                    await self._handle_instantiated_or_scaled(content)
+                if key == 'instantiated':
+                    await self._handle_instantiated(msg)
+
+                if key == 'scaled':
+                    await self._handle_scaled(msg)
 
                 if key == 'terminated':
-                    await self._handle_terminated(content)
+                    await self._handle_terminated(msg)
 
                 if key == 'notify_alarm':
-                    await self._handle_alarm_notification(content)
+                    await self._handle_alarm_notification(msg)
             else:
                 log.debug("Key %s is not in ALLOWED_KAFKA_KEYS", key)
         except peewee.PeeweeException:
@@ -142,8 +128,22 @@ class PolicyModuleAgent:
         except ScalingAlarm.DoesNotExist:
             log.info("There is no action configured for alarm %s.", alarm_uuid)
 
-    async def _handle_instantiated_or_scaled(self, content):
-        log.debug("_handle_instantiated_or_scaled: %s", content)
+    async def _handle_instantiated(self, content):
+        log.debug("_handle_instantiated: %s", content)
+        nslcmop_id = content['nslcmop_id']
+        nslcmop = self.db_client.get_nslcmop(nslcmop_id)
+        if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':
+            nsr_id = nslcmop['nsInstanceId']
+            log.info("Configuring scaling groups for network service with nsr_id: %s", nsr_id)
+            await self._configure_scaling_groups(nsr_id)
+        else:
+            log.info(
+                "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "
+                "Current state is %s. Skipping...",
+                nslcmop['operationState'])
+
+    async def _handle_scaled(self, content):
+        log.debug("_handle_scaled: %s", content)
         nslcmop_id = content['nslcmop_id']
         nslcmop = self.db_client.get_nslcmop(nslcmop_id)
         if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':

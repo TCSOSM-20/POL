@@ -1,4 +1,4 @@
-#!/bin/bash
+# -*- coding: utf-8 -*-
 
 # Copyright 2018 Whitestack, LLC
 # *************************************************************
@@ -21,12 +21,3 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
-
-echo "Installing python dependencies via pip..."
-pip3 install aiokafka==0.4.*
-pip3 install peewee==3.1.*
-pip3 install jsonschema==2.6.*
-pip3 install six==1.11.*
-pip3 install pyyaml==3.*
-pip3 install pymysql
-echo "Installation of python dependencies finished"

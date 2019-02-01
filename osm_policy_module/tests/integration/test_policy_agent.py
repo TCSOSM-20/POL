@@ -36,6 +36,7 @@ from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.common.mon_client import MonClient
 from osm_policy_module.core import database
 from osm_policy_module.core.agent import PolicyModuleAgent
+from osm_policy_module.core.config import Config
 from osm_policy_module.core.database import ScalingGroup, ScalingAlarm, ScalingPolicy, ScalingCriteria
 
 log = logging.getLogger()
@@ -433,7 +434,6 @@ class PolicyModuleAgentTest(unittest.TestCase):
         test_db.drop_tables(MODELS)
         test_db.create_tables(MODELS)
         self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(None)
 
     def tearDown(self):
         super()
@@ -459,7 +459,8 @@ class PolicyModuleAgentTest(unittest.TestCase):
         get_nsr.return_value = nsr_record_mock
         get_vnfd.return_value = vnfd_record_mock
         create_alarm.side_effect = _test_configure_scaling_groups_create_alarm
-        agent = PolicyModuleAgent(self.loop)
+        config = Config()
+        agent = PolicyModuleAgent(config, self.loop)
         self.loop.run_until_complete(agent._configure_scaling_groups("test_nsr_id"))
         create_alarm.assert_any_call(metric_name='cirros_vnf_memory_util',
                                      ns_id='test_nsr_id',
