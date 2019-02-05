@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # Copyright 2018 Whitestack, LLC
 # *************************************************************
 
@@ -19,32 +21,3 @@
 # For those usages not covered by the Apache License, Version 2.0 please
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
-
-FROM ubuntu:16.04
-
-LABEL authors="Benjamín Díaz"
-
-RUN apt-get --yes update \
- && apt-get --yes install python3 python3-pip libmysqlclient-dev git \
- && pip3 install pip==9.0.3
-
-COPY requirements.txt /policy_module/requirements.txt
-
-RUN pip3 install -r /policy_module/requirements.txt
-
-COPY . /policy_module
-
-RUN pip3 install /policy_module
-
-ENV OSMPOL_MESSAGE_DRIVER kafka
-ENV OSMPOL_MESSAGE_HOST kafka
-ENV OSMPOL_MESSAGE_PORT 9092
-
-ENV OSMPOL_DATABASE_DRIVER mongo
-ENV OSMPOL_DATABASE_URI mongodb://mongo:27017
-
-ENV OSMPOL_SQL_DATABASE_URI sqlite:///policy_module.db
-
-ENV OSMPOL_GLOBAL_LOGLEVEL INFO
-
-CMD osm-policy-agent

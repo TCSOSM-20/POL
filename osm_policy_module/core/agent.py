@@ -52,7 +52,7 @@ class PolicyModuleAgent:
         self.db_client = CommonDbClient(config)
         self.mon_client = MonClient(config, loop=self.loop)
         self.lcm_client = LcmClient(config, loop=self.loop)
-        self.database_manager = DatabaseManager()
+        self.database_manager = DatabaseManager(config)
         self.msg_bus = MessageBusClient(config)
 
     def run(self):

@@ -23,10 +23,13 @@
 ##
 import datetime
 import logging
+import os
 
 from peewee import CharField, IntegerField, ForeignKeyField, Model, TextField, AutoField, DateTimeField, Proxy
+from peewee_migrate import Router
 from playhouse.db_url import connect
 
+from osm_policy_module import migrations
 from osm_policy_module.core.config import Config
 
 log = logging.getLogger(__name__)
@@ -69,13 +72,13 @@ class ScalingAlarm(BaseModel):
 
 
 class DatabaseManager:
-    def init_db(self, config: Config):
+    def __init__(self, config: Config):
         db.initialize(connect(config.get('sql', 'database_uri')))
-        self.create_tables()
 
-    def create_tables(self):
+    def create_tables(self) -> None:
         with db.atomic():
-            db.create_tables([ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm])
+            router = Router(db, os.path.dirname(migrations.__file__))
+            router.run()
 
     def get_alarm(self, alarm_uuid: str):
         with db.atomic():

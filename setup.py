@@ -49,11 +49,11 @@ setup(
     include_package_data=True,
     install_requires=[
         "aiokafka==0.4.*",
-        "peewee==3.1.*",
+        "peewee==3.8.*",
         "jsonschema==2.6.*",
-        "six==1.11.*",
         "pyyaml==3.*",
         "pymysql",
+        "peewee-migrate==1.1.*",
         "osm-common",
     ],
     entry_points={

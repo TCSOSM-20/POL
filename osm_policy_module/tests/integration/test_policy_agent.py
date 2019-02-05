@@ -30,7 +30,7 @@ from unittest.mock import patch, Mock
 
 from kafka import KafkaProducer
 from osm_common.dbmongo import DbMongo
-from peewee import SqliteDatabase
+from playhouse.db_url import connect
 
 from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.common.mon_client import MonClient
@@ -420,19 +420,17 @@ vnfd_record_mock = {
     }
 }
 
-test_db = SqliteDatabase(':memory:')
-
 MODELS = [ScalingGroup, ScalingPolicy, ScalingCriteria, ScalingAlarm]
 
 
 class PolicyModuleAgentTest(unittest.TestCase):
     def setUp(self):
         super()
-        database.db = test_db
-        test_db.bind(MODELS)
-        test_db.connect()
-        test_db.drop_tables(MODELS)
-        test_db.create_tables(MODELS)
+        database.db.initialize(connect('sqlite://'))
+        database.db.bind(MODELS)
+        database.db.connect()
+        database.db.drop_tables(MODELS)
+        database.db.create_tables(MODELS)
         self.loop = asyncio.new_event_loop()
 
     def tearDown(self):
