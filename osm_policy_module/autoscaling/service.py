@@ -26,24 +26,20 @@ import datetime
 import json
 import logging
 
-import peewee
-
 from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.common.lcm_client import LcmClient
-from osm_policy_module.common.message_bus_client import MessageBusClient
 from osm_policy_module.common.mon_client import MonClient
 from osm_policy_module.core import database
 from osm_policy_module.core.config import Config
-from osm_policy_module.core.database import ScalingGroup, ScalingAlarm, ScalingPolicy, ScalingCriteria, DatabaseManager
+from osm_policy_module.core.database import ScalingGroup, ScalingAlarm, ScalingPolicy, ScalingCriteria
 from osm_policy_module.core.exceptions import VdurNotFound
 from osm_policy_module.utils.vnfd import VnfdUtils
 
 log = logging.getLogger(__name__)
 
-ALLOWED_KAFKA_KEYS = ['instantiated', 'scaled', 'terminated', 'notify_alarm']
 
+class Service:
 
-class PolicyModuleAgent:
     def __init__(self, config: Config, loop=None):
         self.conf = config
         if not loop:
@@ -52,127 +48,11 @@ class PolicyModuleAgent:
         self.db_client = CommonDbClient(config)
         self.mon_client = MonClient(config, loop=self.loop)
         self.lcm_client = LcmClient(config, loop=self.loop)
-        self.database_manager = DatabaseManager(config)
-        self.msg_bus = MessageBusClient(config)
 
-    def run(self):
-        self.loop.run_until_complete(self.start())
-
-    async def start(self):
-        topics = [
-            "ns",
-            "alarm_response"
-        ]
-        await self.msg_bus.aioread(topics, self._process_msg)
-        log.critical("Exiting...")
-
-    async def _process_msg(self, topic, key, msg):
-        log.debug("_process_msg topic=%s key=%s msg=%s", topic, key, msg)
-        log.info("Message arrived: %s", msg)
-        try:
-            if key in ALLOWED_KAFKA_KEYS:
-
-                if key == 'instantiated':
-                    await self._handle_instantiated(msg)
-
-                if key == 'scaled':
-                    await self._handle_scaled(msg)
-
-                if key == 'terminated':
-                    await self._handle_terminated(msg)
-
-                if key == 'notify_alarm':
-                    await self._handle_alarm_notification(msg)
-            else:
-                log.debug("Key %s is not in ALLOWED_KAFKA_KEYS", key)
-        except peewee.PeeweeException:
-            log.exception("Database error consuming message: ")
-            raise
-        except Exception:
-            log.exception("Error consuming message: ")
-
-    async def _handle_alarm_notification(self, content):
-        log.debug("_handle_alarm_notification: %s", content)
-        alarm_uuid = content['notify_details']['alarm_uuid']
-        metric_name = content['notify_details']['metric_name']
-        operation = content['notify_details']['operation']
-        threshold = content['notify_details']['threshold_value']
-        vdu_name = content['notify_details']['vdu_name']
-        vnf_member_index = content['notify_details']['vnf_member_index']
-        nsr_id = content['notify_details']['ns_id']
-        log.info(
-            "Received alarm notification for alarm %s, \
-            metric %s, \
-            operation %s, \
-            threshold %s, \
-            vdu_name %s, \
-            vnf_member_index %s, \
-            ns_id %s ",
-            alarm_uuid, metric_name, operation, threshold, vdu_name, vnf_member_index, nsr_id)
-        try:
-            alarm = self.database_manager.get_alarm(alarm_uuid)
-            delta = datetime.datetime.now() - alarm.scaling_criteria.scaling_policy.last_scale
-            log.debug("last_scale: %s", alarm.scaling_criteria.scaling_policy.last_scale)
-            log.debug("now: %s", datetime.datetime.now())
-            log.debug("delta: %s", delta)
-            if delta.total_seconds() < alarm.scaling_criteria.scaling_policy.cooldown_time:
-                log.info("Time between last scale and now is less than cooldown time. Skipping.")
-                return
-            log.info("Sending scaling action message for ns: %s", nsr_id)
-            await self.lcm_client.scale(nsr_id,
-                                        alarm.scaling_criteria.scaling_policy.scaling_group.name,
-                                        alarm.vnf_member_index,
-                                        alarm.action)
-            alarm.scaling_criteria.scaling_policy.last_scale = datetime.datetime.now()
-            alarm.scaling_criteria.scaling_policy.save()
-        except ScalingAlarm.DoesNotExist:
-            log.info("There is no action configured for alarm %s.", alarm_uuid)
-
-    async def _handle_instantiated(self, content):
-        log.debug("_handle_instantiated: %s", content)
-        nslcmop_id = content['nslcmop_id']
-        nslcmop = self.db_client.get_nslcmop(nslcmop_id)
-        if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':
-            nsr_id = nslcmop['nsInstanceId']
-            log.info("Configuring scaling groups for network service with nsr_id: %s", nsr_id)
-            await self._configure_scaling_groups(nsr_id)
-        else:
-            log.info(
-                "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "
-                "Current state is %s. Skipping...",
-                nslcmop['operationState'])
-
-    async def _handle_scaled(self, content):
-        log.debug("_handle_scaled: %s", content)
-        nslcmop_id = content['nslcmop_id']
-        nslcmop = self.db_client.get_nslcmop(nslcmop_id)
-        if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':
-            nsr_id = nslcmop['nsInstanceId']
-            log.info("Configuring scaling groups for network service with nsr_id: %s", nsr_id)
-            await self._configure_scaling_groups(nsr_id)
-            log.info("Checking for orphaned alarms to be deleted for network service with nsr_id: %s", nsr_id)
-            await self._delete_orphaned_alarms(nsr_id)
-        else:
-            log.info(
-                "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "
-                "Current state is %s. Skipping...",
-                nslcmop['operationState'])
-
-    async def _handle_terminated(self, content):
-        log.debug("_handle_deleted: %s", content)
-        nsr_id = content['nsr_id']
-        if content['operationState'] == 'COMPLETED' or content['operationState'] == 'PARTIALLY_COMPLETED':
-            log.info("Deleting scaling groups and alarms for network service with nsr_id: %s", nsr_id)
-            await self._delete_scaling_groups(nsr_id)
-        else:
-            log.info(
-                "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "
-                "Current state is %s. Skipping...",
-                content['operationState'])
-
-    async def _configure_scaling_groups(self, nsr_id: str):
+    async def configure_scaling_groups(self, nsr_id: str):
         log.debug("_configure_scaling_groups: %s", nsr_id)
         alarms_created = []
+        database.db.connect()
         with database.db.atomic() as tx:
             try:
                 vnfrs = self.db_client.get_vnfrs(nsr_id)
@@ -346,8 +226,10 @@ class PolicyModuleAgent:
                                                            alarm.vdu_name,
                                                            alarm.alarm_uuid)
                 raise e
+        database.db.close()
 
-    async def _delete_scaling_groups(self, nsr_id: str):
+    async def delete_scaling_groups(self, nsr_id: str):
+        database.db.connect()
         with database.db.atomic() as tx:
             try:
                 for scaling_group in ScalingGroup.select().where(ScalingGroup.nsr_id == nsr_id):
@@ -371,8 +253,10 @@ class PolicyModuleAgent:
                 log.exception("Error deleting scaling groups and alarms:")
                 tx.rollback()
                 raise e
+        database.db.close()
 
-    async def _delete_orphaned_alarms(self, nsr_id):
+    async def delete_orphaned_alarms(self, nsr_id):
+        database.db.connect()
         with database.db.atomic() as tx:
             try:
                 for scaling_group in ScalingGroup.select().where(ScalingGroup.nsr_id == nsr_id):
@@ -397,3 +281,31 @@ class PolicyModuleAgent:
                 log.exception("Error deleting orphaned alarms:")
                 tx.rollback()
                 raise e
+        database.db.close()
+
+    async def scale(self, alarm):
+        database.db.connect()
+        with database.db.atomic():
+            delta = datetime.datetime.now() - alarm.scaling_criteria.scaling_policy.last_scale
+            if delta.total_seconds() > alarm.scaling_criteria.scaling_policy.cooldown_time:
+                log.info("Sending scaling action message for ns: %s",
+                         alarm.scaling_criteria.scaling_policy.scaling_group.nsr_id)
+                await self.lcm_client.scale(alarm.scaling_criteria.scaling_policy.scaling_group.nsr_id,
+                                            alarm.scaling_criteria.scaling_policy.scaling_group.name,
+                                            alarm.vnf_member_index,
+                                            alarm.action)
+                alarm.scaling_criteria.scaling_policy.last_scale = datetime.datetime.now()
+                alarm.scaling_criteria.scaling_policy.save()
+            else:
+                log.info("Time between last scale and now is less than cooldown time. Skipping.")
+        database.db.close()
+
+    def get_alarm(self, alarm_uuid: str):
+        database.db.connect()
+        with database.db.atomic():
+            alarm = ScalingAlarm.select().where(ScalingAlarm.alarm_uuid == alarm_uuid).get()
+        database.db.close()
+        return alarm
+
+    def get_nslcmop(self, nslcmop_id):
+        return self.db_client.get_nslcmop(nslcmop_id)

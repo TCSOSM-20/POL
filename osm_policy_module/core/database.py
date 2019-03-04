@@ -76,10 +76,8 @@ class DatabaseManager:
         db.initialize(connect(config.get('sql', 'database_uri')))
 
     def create_tables(self) -> None:
+        db.connect()
         with db.atomic():
             router = Router(db, os.path.dirname(migrations.__file__))
             router.run()
-
-    def get_alarm(self, alarm_uuid: str):
-        with db.atomic():
-            return ScalingAlarm.select().where(ScalingAlarm.alarm_uuid == alarm_uuid).get()
+        db.close()

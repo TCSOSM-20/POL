@@ -27,20 +27,20 @@ import unittest
 from unittest import mock
 from unittest.mock import Mock
 
-from osm_policy_module.core.agent import PolicyModuleAgent
+from osm_policy_module.autoscaling.agent import PolicyModuleAgent
+from osm_policy_module.autoscaling.service import Service
 from osm_policy_module.core.config import Config
-from osm_policy_module.core.database import DatabaseManager
 
 
 class PolicyAgentTest(unittest.TestCase):
     def setUp(self):
         self.loop = asyncio.new_event_loop()
 
-    @mock.patch('osm_policy_module.core.agent.CommonDbClient')
-    @mock.patch('osm_policy_module.core.agent.MonClient')
-    @mock.patch('osm_policy_module.core.agent.LcmClient')
-    @mock.patch.object(PolicyModuleAgent, '_configure_scaling_groups')
-    @mock.patch.object(PolicyModuleAgent, '_delete_orphaned_alarms')
+    @mock.patch('osm_policy_module.autoscaling.service.CommonDbClient')
+    @mock.patch('osm_policy_module.autoscaling.service.MonClient')
+    @mock.patch('osm_policy_module.autoscaling.service.LcmClient')
+    @mock.patch.object(Service, 'configure_scaling_groups')
+    @mock.patch.object(Service, 'delete_orphaned_alarms')
     def test_handle_instantiated(self, delete_orphaned_alarms, configure_scaling_groups, lcm_client,
                                  mon_client, db_client):
         async def mock_configure_scaling_groups(nsr_id):
@@ -77,11 +77,12 @@ class PolicyAgentTest(unittest.TestCase):
         self.loop.run_until_complete(agent._handle_instantiated(content))
         configure_scaling_groups.assert_not_called()
 
-    @mock.patch('osm_policy_module.core.agent.CommonDbClient')
-    @mock.patch('osm_policy_module.core.agent.MonClient')
-    @mock.patch('osm_policy_module.core.agent.LcmClient')
-    @mock.patch.object(DatabaseManager, 'get_alarm')
-    def test_handle_alarm_notification(self, get_alarm, lcm_client, mon_client, db_client):
+    @mock.patch('osm_policy_module.autoscaling.service.CommonDbClient')
+    @mock.patch('osm_policy_module.autoscaling.service.MonClient')
+    @mock.patch('osm_policy_module.autoscaling.service.LcmClient')
+    @mock.patch('osm_policy_module.core.database.db')
+    @mock.patch.object(Service, 'get_alarm')
+    def test_handle_alarm_notification(self, get_alarm, db, lcm_client, mon_client, db_client):
         async def mock_scale(nsr_id, scaling_group_name, vnf_member_index, action):
             pass
 
