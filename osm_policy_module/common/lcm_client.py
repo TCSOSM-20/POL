@@ -47,7 +47,7 @@ class LcmClient:
         log.debug("scale %s %s %s %s", nsr_id, scaling_group_name, vnf_member_index, action)
         nslcmop = self._generate_nslcmop(nsr_id, scaling_group_name, vnf_member_index, action)
         self.db_client.create_nslcmop(nslcmop)
-        log.info("Sending scale action message: %s", json.dumps(nslcmop))
+        log.debug("Sending scale action message: %s", json.dumps(nslcmop))
         await self.msg_bus.aiowrite("ns", "scale", nslcmop)
 
     def _generate_nslcmop(self, nsr_id: str, scaling_group_name: str, vnf_member_index: int, action: str):

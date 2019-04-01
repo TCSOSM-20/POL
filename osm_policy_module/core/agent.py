@@ -26,10 +26,10 @@ import logging
 
 import peewee
 
-from osm_policy_module.autoscaling.service import Service
+from osm_policy_module.alarming.service import AlarmingService
+from osm_policy_module.autoscaling.service import AutoscalingService
 from osm_policy_module.common.message_bus_client import MessageBusClient
 from osm_policy_module.core.config import Config
-from osm_policy_module.core.database import ScalingAlarm
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +43,8 @@ class PolicyModuleAgent:
             loop = asyncio.get_event_loop()
         self.loop = loop
         self.msg_bus = MessageBusClient(config)
-        self.service = Service(config, loop)
+        self.autoscaling_service = AutoscalingService(config, loop)
+        self.alarming_service = AlarmingService(config, loop)
 
     def run(self):
         self.loop.run_until_complete(self.start())
@@ -58,7 +59,6 @@ class PolicyModuleAgent:
 
     async def _process_msg(self, topic, key, msg):
         log.debug("_process_msg topic=%s key=%s msg=%s", topic, key, msg)
-        log.info("Message arrived: %s", msg)
         try:
             if key in ALLOWED_KAFKA_KEYS:
 
@@ -84,53 +84,37 @@ class PolicyModuleAgent:
     async def _handle_alarm_notification(self, content):
         log.debug("_handle_alarm_notification: %s", content)
         alarm_uuid = content['notify_details']['alarm_uuid']
-        metric_name = content['notify_details']['metric_name']
-        operation = content['notify_details']['operation']
-        threshold = content['notify_details']['threshold_value']
-        vdu_name = content['notify_details']['vdu_name']
-        vnf_member_index = content['notify_details']['vnf_member_index']
-        nsr_id = content['notify_details']['ns_id']
-        log.info(
-            "Received alarm notification for alarm %s, \
-            metric %s, \
-            operation %s, \
-            threshold %s, \
-            vdu_name %s, \
-            vnf_member_index %s, \
-            ns_id %s ",
-            alarm_uuid, metric_name, operation, threshold, vdu_name, vnf_member_index, nsr_id)
-        try:
-            alarm = self.service.get_alarm(alarm_uuid)
-            await self.service.scale(alarm)
-        except ScalingAlarm.DoesNotExist:
-            log.info("There is no action configured for alarm %s.", alarm_uuid)
+        status = content['notify_details']['status']
+        await self.autoscaling_service.handle_alarm(alarm_uuid, status)
+        await self.alarming_service.handle_alarm(alarm_uuid, status, content)
 
     async def _handle_instantiated(self, content):
         log.debug("_handle_instantiated: %s", content)
         nslcmop_id = content['nslcmop_id']
-        nslcmop = self.service.get_nslcmop(nslcmop_id)
+        nslcmop = self.autoscaling_service.get_nslcmop(nslcmop_id)
         if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':
             nsr_id = nslcmop['nsInstanceId']
-            log.info("Configuring scaling groups for network service with nsr_id: %s", nsr_id)
-            await self.service.configure_scaling_groups(nsr_id)
+            log.info("Configuring nsr_id: %s", nsr_id)
+            await self.autoscaling_service.configure_scaling_groups(nsr_id)
+            await self.alarming_service.configure_vnf_alarms(nsr_id)
         else:
             log.info(
-                "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "
+                "Network_service is not in COMPLETED or PARTIALLY_COMPLETED state. "
                 "Current state is %s. Skipping...",
                 nslcmop['operationState'])
 
     async def _handle_scaled(self, content):
         log.debug("_handle_scaled: %s", content)
         nslcmop_id = content['nslcmop_id']
-        nslcmop = self.service.get_nslcmop(nslcmop_id)
+        nslcmop = self.autoscaling_service.get_nslcmop(nslcmop_id)
         if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':
             nsr_id = nslcmop['nsInstanceId']
-            log.info("Configuring scaling groups for network service with nsr_id: %s", nsr_id)
-            await self.service.configure_scaling_groups(nsr_id)
-            log.info("Checking for orphaned alarms to be deleted for network service with nsr_id: %s", nsr_id)
-            await self.service.delete_orphaned_alarms(nsr_id)
+            log.info("Configuring scaled service with nsr_id: %s", nsr_id)
+            await self.autoscaling_service.configure_scaling_groups(nsr_id)
+            await self.autoscaling_service.delete_orphaned_alarms(nsr_id)
+            await self.alarming_service.configure_vnf_alarms(nsr_id)
         else:
-            log.info(
+            log.debug(
                 "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "
                 "Current state is %s. Skipping...",
                 nslcmop['operationState'])
@@ -139,8 +123,9 @@ class PolicyModuleAgent:
         log.debug("_handle_deleted: %s", content)
         nsr_id = content['nsr_id']
         if content['operationState'] == 'COMPLETED' or content['operationState'] == 'PARTIALLY_COMPLETED':
-            log.info("Deleting scaling groups and alarms for network service with nsr_id: %s", nsr_id)
-            await self.service.delete_scaling_groups(nsr_id)
+            log.info("Deleting scaling groups and alarms for network autoscaling_service with nsr_id: %s", nsr_id)
+            await self.autoscaling_service.delete_scaling_groups(nsr_id)
+            await self.alarming_service.delete_vnf_alarms(nsr_id)
         else:
             log.info(
                 "Network service is not in COMPLETED or PARTIALLY_COMPLETED state. "

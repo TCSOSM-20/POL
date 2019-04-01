@@ -22,13 +22,12 @@
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
 import asyncio
-import datetime
 import unittest
 from unittest import mock
-from unittest.mock import Mock
 
-from osm_policy_module.autoscaling.agent import PolicyModuleAgent
-from osm_policy_module.autoscaling.service import Service
+from osm_policy_module.alarming.service import AlarmingService
+from osm_policy_module.autoscaling.service import AutoscalingService
+from osm_policy_module.core.agent import PolicyModuleAgent
 from osm_policy_module.core.config import Config
 
 
@@ -36,14 +35,29 @@ class PolicyAgentTest(unittest.TestCase):
     def setUp(self):
         self.loop = asyncio.new_event_loop()
 
+    @mock.patch('osm_policy_module.alarming.service.CommonDbClient')
+    @mock.patch('osm_policy_module.alarming.service.MonClient')
+    @mock.patch('osm_policy_module.alarming.service.LcmClient')
     @mock.patch('osm_policy_module.autoscaling.service.CommonDbClient')
     @mock.patch('osm_policy_module.autoscaling.service.MonClient')
     @mock.patch('osm_policy_module.autoscaling.service.LcmClient')
-    @mock.patch.object(Service, 'configure_scaling_groups')
-    @mock.patch.object(Service, 'delete_orphaned_alarms')
-    def test_handle_instantiated(self, delete_orphaned_alarms, configure_scaling_groups, lcm_client,
-                                 mon_client, db_client):
+    @mock.patch.object(AutoscalingService, 'configure_scaling_groups')
+    @mock.patch.object(AlarmingService, 'configure_vnf_alarms')
+    @mock.patch.object(AutoscalingService, 'delete_orphaned_alarms')
+    def test_handle_instantiated(self,
+                                 delete_orphaned_alarms,
+                                 configure_vnf_alarms,
+                                 configure_scaling_groups,
+                                 autoscaling_lcm_client,
+                                 autoscaling_mon_client,
+                                 autoscaling_db_client,
+                                 alarming_lcm_client,
+                                 alarming_mon_client,
+                                 alarming_db_client):
         async def mock_configure_scaling_groups(nsr_id):
+            pass
+
+        async def mock_configure_vnf_alarms(nsr_id):
             pass
 
         async def mock_delete_orphaned_alarms(nsr_id):
@@ -51,9 +65,12 @@ class PolicyAgentTest(unittest.TestCase):
 
         config = Config()
         agent = PolicyModuleAgent(config, self.loop)
-        assert lcm_client.called
-        assert mon_client.called
-        assert db_client.called
+        assert autoscaling_lcm_client.called
+        assert autoscaling_mon_client.called
+        assert autoscaling_db_client.called
+        assert alarming_lcm_client.called
+        assert alarming_mon_client.called
+        assert alarming_db_client.called
         content = {
             'nslcmop_id': 'test_id',
         }
@@ -66,31 +83,46 @@ class PolicyAgentTest(unittest.TestCase):
             'nsInstanceId': 'test_nsr_id'
         }
         configure_scaling_groups.side_effect = mock_configure_scaling_groups
+        configure_vnf_alarms.side_effect = mock_configure_vnf_alarms
         delete_orphaned_alarms.side_effect = mock_delete_orphaned_alarms
 
-        db_client.return_value.get_nslcmop.return_value = nslcmop_completed
+        autoscaling_db_client.return_value.get_nslcmop.return_value = nslcmop_completed
         self.loop.run_until_complete(agent._handle_instantiated(content))
         configure_scaling_groups.assert_called_with('test_nsr_id')
         configure_scaling_groups.reset_mock()
 
-        db_client.return_value.get_nslcmop.return_value = nslcmop_failed
+        autoscaling_db_client.return_value.get_nslcmop.return_value = nslcmop_failed
         self.loop.run_until_complete(agent._handle_instantiated(content))
         configure_scaling_groups.assert_not_called()
 
     @mock.patch('osm_policy_module.autoscaling.service.CommonDbClient')
     @mock.patch('osm_policy_module.autoscaling.service.MonClient')
     @mock.patch('osm_policy_module.autoscaling.service.LcmClient')
-    @mock.patch('osm_policy_module.core.database.db')
-    @mock.patch.object(Service, 'get_alarm')
-    def test_handle_alarm_notification(self, get_alarm, db, lcm_client, mon_client, db_client):
-        async def mock_scale(nsr_id, scaling_group_name, vnf_member_index, action):
+    @mock.patch('osm_policy_module.alarming.service.CommonDbClient')
+    @mock.patch('osm_policy_module.alarming.service.MonClient')
+    @mock.patch('osm_policy_module.alarming.service.LcmClient')
+    @mock.patch.object(AutoscalingService, 'handle_alarm')
+    @mock.patch.object(AlarmingService, 'handle_alarm')
+    def test_handle_alarm_notification(self,
+                                       alarming_handle_alarm,
+                                       autoscaling_handle_alarm,
+                                       autoscaling_lcm_client,
+                                       autoscaling_mon_client,
+                                       autoscaling_db_client,
+                                       alarming_lcm_client,
+                                       alarming_mon_client,
+                                       alarming_db_client):
+        async def mock_handle_alarm(alarm_uuid, status, payload=None):
             pass
 
         config = Config()
         agent = PolicyModuleAgent(config, self.loop)
-        assert lcm_client.called
-        assert mon_client.called
-        assert db_client.called
+        assert autoscaling_lcm_client.called
+        assert autoscaling_mon_client.called
+        assert autoscaling_db_client.called
+        assert alarming_lcm_client.called
+        assert alarming_mon_client.called
+        assert alarming_db_client.called
         content = {
             'notify_details': {
                 'alarm_uuid': 'test_alarm_uuid',
@@ -99,33 +131,16 @@ class PolicyAgentTest(unittest.TestCase):
                 'threshold_value': 'test_threshold_value',
                 'vdu_name': 'test_vdu_name',
                 'vnf_member_index': 'test_vnf_member_index',
-                'ns_id': 'test_nsr_id'
+                'ns_id': 'test_nsr_id',
+                'status': 'alarm'
             }
         }
-        mock_alarm = Mock()
-        mock_alarm.vnf_member_index = 1
-        mock_alarm.action = 'scale_out'
-        mock_scaling_criteria = Mock()
-        mock_scaling_policy = Mock()
-        mock_scaling_group = Mock()
-        mock_scaling_group.nsr_id = 'test_nsr_id'
-        mock_scaling_group.name = 'test_name'
-        mock_scaling_policy.cooldown_time = 60
-        mock_scaling_policy.scaling_group = mock_scaling_group
-        mock_scaling_criteria.scaling_policy = mock_scaling_policy
-        mock_alarm.scaling_criteria = mock_scaling_criteria
-        get_alarm.return_value = mock_alarm
-        lcm_client.return_value.scale.side_effect = mock_scale
-
-        mock_scaling_policy.last_scale = datetime.datetime.now() - datetime.timedelta(minutes=90)
+        autoscaling_handle_alarm.side_effect = mock_handle_alarm
+        alarming_handle_alarm.side_effect = mock_handle_alarm
 
         self.loop.run_until_complete(agent._handle_alarm_notification(content))
-        lcm_client.return_value.scale.assert_called_with('test_nsr_id', 'test_name', 1, 'scale_out')
-        lcm_client.return_value.scale.reset_mock()
-
-        mock_scaling_policy.last_scale = datetime.datetime.now()
-        self.loop.run_until_complete(agent._handle_alarm_notification(content))
-        lcm_client.return_value.scale.assert_not_called()
+        autoscaling_handle_alarm.assert_called_with('test_alarm_uuid', 'alarm')
+        alarming_handle_alarm.assert_called_with('test_alarm_uuid', 'alarm', content)
 
 
 if __name__ == '__main__':

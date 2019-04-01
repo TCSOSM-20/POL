@@ -4,4 +4,5 @@ jsonschema==2.6.*
 pyyaml==3.*
 pymysql==0.9.*
 peewee-migrate==1.1.*
+requests
 git+https://osm.etsi.org/gerrit/osm/common.git@v5.0#egg=osm-common

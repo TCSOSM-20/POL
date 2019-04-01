@@ -26,7 +26,7 @@ import asyncio
 import logging
 import sys
 
-from osm_policy_module.autoscaling.agent import PolicyModuleAgent
+from osm_policy_module.core.agent import PolicyModuleAgent
 from osm_policy_module.core.config import Config
 from osm_policy_module.core.database import DatabaseManager
 

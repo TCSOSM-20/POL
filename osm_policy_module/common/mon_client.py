@@ -46,10 +46,15 @@ class MonClient:
     async def create_alarm(self, metric_name: str, ns_id: str, vdu_name: str, vnf_member_index: int, threshold: int,
                            statistic: str, operation: str):
         cor_id = random.randint(1, 10e7)
-        msg = self._build_create_alarm_payload(cor_id, metric_name, ns_id, vdu_name, vnf_member_index, threshold,
+        msg = self._build_create_alarm_payload(cor_id,
+                                               metric_name,
+                                               ns_id,
+                                               vdu_name,
+                                               vnf_member_index,
+                                               threshold,
                                                statistic,
                                                operation)
-        log.info("Sending create_alarm_request %s", msg)
+        log.debug("Sending create_alarm_request %s", msg)
         producer = AIOKafkaProducer(loop=self.loop,
                                     bootstrap_servers=self.kafka_server,
                                     key_serializer=str.encode,
@@ -59,7 +64,7 @@ class MonClient:
             await producer.send_and_wait("alarm_request", key="create_alarm_request", value=json.dumps(msg))
         finally:
             await producer.stop()
-        log.info("Waiting for create_alarm_response...")
+        log.debug("Waiting for create_alarm_response...")
         consumer = AIOKafkaConsumer(
             "alarm_response_" + str(cor_id),
             loop=self.loop,
@@ -75,7 +80,7 @@ class MonClient:
                     content = json.loads(message.value)
                 except JSONDecodeError:
                     content = yaml.safe_load(message.value)
-                log.info("Received create_alarm_response %s", content)
+                log.debug("Received create_alarm_response %s", content)
                 if content['alarm_create_response']['correlation_id'] == cor_id:
                     if not content['alarm_create_response']['status']:
                         raise ValueError("Error creating alarm in MON")
@@ -90,7 +95,7 @@ class MonClient:
     async def delete_alarm(self, ns_id: str, vnf_member_index: int, vdu_name: str, alarm_uuid: str):
         cor_id = random.randint(1, 10e7)
         msg = self._build_delete_alarm_payload(cor_id, ns_id, vdu_name, vnf_member_index, alarm_uuid)
-        log.info("Sending delete_alarm_request %s", msg)
+        log.debug("Sending delete_alarm_request %s", msg)
         producer = AIOKafkaProducer(loop=self.loop,
                                     bootstrap_servers=self.kafka_server,
                                     key_serializer=str.encode,
@@ -100,7 +105,7 @@ class MonClient:
             await producer.send_and_wait("alarm_request", key="delete_alarm_request", value=json.dumps(msg))
         finally:
             await producer.stop()
-        log.info("Waiting for delete_alarm_response...")
+        log.debug("Waiting for delete_alarm_response...")
         consumer = AIOKafkaConsumer(
             "alarm_response_" + str(cor_id),
             loop=self.loop,
@@ -117,7 +122,7 @@ class MonClient:
                 except JSONDecodeError:
                     content = yaml.safe_load(message.value)
                 if content['alarm_delete_response']['correlation_id'] == cor_id:
-                    log.info("Received delete_alarm_response %s", content)
+                    log.debug("Received delete_alarm_response %s", content)
                     if not content['alarm_delete_response']['status']:
                         raise ValueError("Error deleting alarm in MON. Response status is False.")
                     alarm_uuid = content['alarm_delete_response']['alarm_uuid']
@@ -128,9 +133,15 @@ class MonClient:
             raise ValueError('No alarm deletion response from MON. Is MON up?')
         return alarm_uuid
 
-    def _build_create_alarm_payload(self, cor_id: int, metric_name: str, ns_id: str, vdu_name: str,
+    def _build_create_alarm_payload(self, cor_id: int,
+                                    metric_name: str,
+                                    ns_id: str,
+                                    vdu_name: str,
                                     vnf_member_index: int,
-                                    threshold: int, statistic: str, operation: str):
+                                    threshold: int,
+                                    statistic: str,
+                                    operation: str):
+
         alarm_create_request = {
             'correlation_id': cor_id,
             'alarm_name': 'osm_alarm_{}_{}_{}_{}'.format(ns_id, vnf_member_index, vdu_name, metric_name),
