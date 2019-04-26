@@ -37,7 +37,7 @@ setup(
     name=_name,
     version_command=_version_command,
     description=_description,
-    long_description=open('README.rst').read(),
+    long_description=open('README.rst', encoding='utf-8').read(),
     author=_author,
     author_email=_author_email,
     maintainer=_maintainer,
