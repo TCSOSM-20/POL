@@ -54,6 +54,7 @@ setup(
         "pyyaml==3.*",
         "pymysql",
         "peewee-migrate==1.1.*",
+        "requests==2.*",
         "osm-common",
     ],
     entry_points={
