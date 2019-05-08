@@ -47,6 +47,4 @@ ENV OSMPOL_SQL_DATABASE_URI sqlite:///policy_module.db
 
 ENV OSMPOL_GLOBAL_LOGLEVEL INFO
 
-CMD osm-policy-agent
-
 CMD /bin/bash /policy_module/docker/scripts/start.sh
