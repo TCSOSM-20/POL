@@ -103,7 +103,7 @@ class AlarmingService:
                                     vdu_name=vdur['name']
                                 )
                                 for action_type in ['ok', 'insufficient-data', 'alarm']:
-                                    if action_type in alarm_descriptor['actions']:
+                                    if 'actions' in alarm_descriptor and action_type in alarm_descriptor['actions']:
                                         for url in alarm_descriptor['actions'][action_type]:
                                             AlarmActionRepository.create(
                                                 type=action_type,
