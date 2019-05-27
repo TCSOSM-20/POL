@@ -47,4 +47,7 @@ ENV OSMPOL_SQL_DATABASE_URI sqlite:///policy_module.db
 
 ENV OSMPOL_GLOBAL_LOGLEVEL INFO
 
+HEALTHCHECK --interval=5s --timeout=2s --retries=12 \
+  CMD osm-pol-healthcheck || exit 1
+
 CMD /bin/bash /policy_module/docker/scripts/start.sh
