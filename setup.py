@@ -60,6 +60,7 @@ setup(
     entry_points={
         "console_scripts": [
             "osm-policy-agent = osm_policy_module.cmd.policy_module_agent:main",
+            "osm-pol-healthcheck = osm_policy_module.cmd.policy_module_healthcheck:main",
         ]
     },
     dependency_links=[
