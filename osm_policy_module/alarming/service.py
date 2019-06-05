@@ -99,7 +99,7 @@ class AlarmingService:
                                     alarm_id=alarm_descriptor['alarm-id'],
                                     alarm_uuid=alarm_uuid,
                                     nsr_id=nsr_id,
-                                    vnf_member_index=int(vnfr['member-vnf-index-ref']),
+                                    vnf_member_index=vnfr['member-vnf-index-ref'],
                                     vdu_name=vdur['name']
                                 )
                                 for action_type in ['ok', 'insufficient-data', 'alarm']:

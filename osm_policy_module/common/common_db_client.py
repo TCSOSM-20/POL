@@ -37,9 +37,9 @@ class CommonDbClient:
             raise Exception("Unknown database driver {}".format(config.get('section', 'driver')))
         self.common_db.db_connect(config.get("database"))
 
-    def get_vnfr(self, nsr_id: str, member_index: int):
+    def get_vnfr(self, nsr_id: str, member_index: str):
         vnfr = self.common_db.get_one("vnfrs",
-                                      {"nsr-id-ref": nsr_id, "member-vnf-index-ref": str(member_index)})
+                                      {"nsr-id-ref": nsr_id, "member-vnf-index-ref": member_index})
         return vnfr
 
     def get_vnfrs(self, nsr_id: str):

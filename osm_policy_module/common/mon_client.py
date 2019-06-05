@@ -43,7 +43,7 @@ class MonClient:
             loop = asyncio.get_event_loop()
         self.loop = loop
 
-    async def create_alarm(self, metric_name: str, ns_id: str, vdu_name: str, vnf_member_index: int, threshold: int,
+    async def create_alarm(self, metric_name: str, ns_id: str, vdu_name: str, vnf_member_index: str, threshold: int,
                            statistic: str, operation: str):
         cor_id = random.randint(1, 10e7)
         msg = self._build_create_alarm_payload(cor_id,
@@ -92,7 +92,7 @@ class MonClient:
             raise ValueError('No alarm deletion response from MON. Is MON up?')
         return alarm_uuid
 
-    async def delete_alarm(self, ns_id: str, vnf_member_index: int, vdu_name: str, alarm_uuid: str):
+    async def delete_alarm(self, ns_id: str, vnf_member_index: str, vdu_name: str, alarm_uuid: str):
         cor_id = random.randint(1, 10e7)
         msg = self._build_delete_alarm_payload(cor_id, ns_id, vdu_name, vnf_member_index, alarm_uuid)
         log.debug("Sending delete_alarm_request %s", msg)
@@ -137,7 +137,7 @@ class MonClient:
                                     metric_name: str,
                                     ns_id: str,
                                     vdu_name: str,
-                                    vnf_member_index: int,
+                                    vnf_member_index: str,
                                     threshold: int,
                                     statistic: str,
                                     operation: str):
@@ -160,7 +160,7 @@ class MonClient:
         return msg
 
     def _build_delete_alarm_payload(self, cor_id: int, ns_id: str, vdu_name: str,
-                                    vnf_member_index: int, alarm_uuid: str):
+                                    vnf_member_index: str, alarm_uuid: str):
         alarm_delete_request = {
             'correlation_id': cor_id,
             'alarm_uuid': alarm_uuid,

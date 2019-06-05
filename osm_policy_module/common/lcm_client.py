@@ -43,14 +43,14 @@ class LcmClient:
             loop = asyncio.get_event_loop()
         self.loop = loop
 
-    async def scale(self, nsr_id: str, scaling_group_name: str, vnf_member_index: int, action: str):
+    async def scale(self, nsr_id: str, scaling_group_name: str, vnf_member_index: str, action: str):
         log.debug("scale %s %s %s %s", nsr_id, scaling_group_name, vnf_member_index, action)
         nslcmop = self._generate_nslcmop(nsr_id, scaling_group_name, vnf_member_index, action)
         self.db_client.create_nslcmop(nslcmop)
         log.debug("Sending scale action message: %s", json.dumps(nslcmop))
         await self.msg_bus.aiowrite("ns", "scale", nslcmop)
 
-    def _generate_nslcmop(self, nsr_id: str, scaling_group_name: str, vnf_member_index: int, action: str):
+    def _generate_nslcmop(self, nsr_id: str, scaling_group_name: str, vnf_member_index: str, action: str):
         log.debug("_generate_nslcmop %s %s %s %s", nsr_id, scaling_group_name, vnf_member_index, action)
         _id = str(uuid.uuid4())
         now = time.time()
@@ -60,7 +60,7 @@ class LcmClient:
                 "scaleVnfType": action.upper(),
                 "scaleByStepData": {
                     "scaling-group-descriptor": scaling_group_name,
-                    "member-vnf-index": str(vnf_member_index)
+                    "member-vnf-index": vnf_member_index
                 }
             },
             "scaleTime": "{}Z".format(datetime.datetime.utcnow().isoformat())

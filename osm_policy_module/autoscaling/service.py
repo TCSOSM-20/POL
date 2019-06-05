@@ -71,7 +71,7 @@ class AutoscalingService:
                             try:
                                 scaling_group_record = ScalingGroupRepository.get(
                                     ScalingGroup.nsr_id == nsr_id,
-                                    ScalingGroup.vnf_member_index == int(vnfr['member-vnf-index-ref']),
+                                    ScalingGroup.vnf_member_index == vnfr['member-vnf-index-ref'],
                                     ScalingGroup.name == scaling_group['name']
                                 )
                                 log.debug("Found existing scaling group record in DB...")
@@ -203,7 +203,7 @@ class AutoscalingService:
                                         alarm = ScalingAlarmRepository.create(
                                             alarm_uuid=alarm_uuid,
                                             action='scale_in',
-                                            vnf_member_index=int(vnfr['member-vnf-index-ref']),
+                                            vnf_member_index=vnfr['member-vnf-index-ref'],
                                             vdu_name=vdur['name'],
                                             scaling_criteria=scaling_criteria_record
                                         )
@@ -220,7 +220,7 @@ class AutoscalingService:
                                         alarm = ScalingAlarmRepository.create(
                                             alarm_uuid=alarm_uuid,
                                             action='scale_out',
-                                            vnf_member_index=int(vnfr['member-vnf-index-ref']),
+                                            vnf_member_index=vnfr['member-vnf-index-ref'],
                                             vdu_name=vdur['name'],
                                             scaling_criteria=scaling_criteria_record
                                         )

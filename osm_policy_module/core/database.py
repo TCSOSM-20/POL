@@ -48,7 +48,7 @@ class BaseModel(Model):
 
 class ScalingGroup(BaseModel):
     nsr_id = CharField()
-    vnf_member_index = IntegerField()
+    vnf_member_index = CharField()
     name = CharField()
     content = TextField()
 
@@ -71,7 +71,7 @@ class ScalingCriteria(BaseModel):
 class ScalingAlarm(BaseModel):
     alarm_uuid = CharField(unique=True)
     action = CharField()
-    vnf_member_index = IntegerField()
+    vnf_member_index = CharField()
     vdu_name = CharField()
     scaling_criteria = ForeignKeyField(ScalingCriteria, related_name='scaling_alarms', on_delete='CASCADE')
     last_status = CharField(default='insufficient-data')
@@ -81,7 +81,7 @@ class VnfAlarm(BaseModel):
     alarm_id = CharField()
     alarm_uuid = CharField(unique=True)
     nsr_id = CharField()
-    vnf_member_index = IntegerField()
+    vnf_member_index = CharField()
     vdu_name = CharField()
 
 
