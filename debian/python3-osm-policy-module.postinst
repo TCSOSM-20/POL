@@ -23,7 +23,7 @@
 ##
 
 echo "Installing python dependencies via pip..."
-pip3 install aiokafka==0.4.*
+pip3 install aiokafka==0.5.*
 pip3 install peewee==3.8.*
 pip3 install jsonschema==2.6.*
 pip3 install pyyaml==3.*

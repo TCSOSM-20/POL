@@ -1,4 +1,4 @@
-aiokafka==0.4.*
+aiokafka==0.5.*
 peewee==3.8.*
 jsonschema==2.6.*
 pyyaml==3.*

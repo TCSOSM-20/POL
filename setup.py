@@ -48,7 +48,7 @@ setup(
     package_dir={_name: _name},
     include_package_data=True,
     install_requires=[
-        "aiokafka==0.4.*",
+        "aiokafka==0.5.*",
         "peewee==3.8.*",
         "jsonschema==2.6.*",
         "pyyaml==3.*",
