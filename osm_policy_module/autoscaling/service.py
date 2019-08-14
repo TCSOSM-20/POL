@@ -51,6 +51,11 @@ class AutoscalingService:
         self.lcm_client = LcmClient(config, loop=self.loop)
 
     async def configure_scaling_groups(self, nsr_id: str):
+        """
+        Configures scaling groups for a network service. Creates records in DB. Creates alarms in MON.
+        :param nsr_id: Network service record id
+        :return:
+        """
         log.info("Configuring scaling groups for network service with nsr_id: %s",
                  nsr_id)
         alarms_created = []
