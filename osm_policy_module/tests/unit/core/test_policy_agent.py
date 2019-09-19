@@ -27,6 +27,7 @@ from unittest import mock
 
 from osm_policy_module.alarming.service import AlarmingService
 from osm_policy_module.autoscaling.service import AutoscalingService
+from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.core.agent import PolicyModuleAgent
 from osm_policy_module.core.config import Config
 
@@ -35,25 +36,24 @@ class PolicyAgentTest(unittest.TestCase):
     def setUp(self):
         self.loop = asyncio.new_event_loop()
 
-    @mock.patch('osm_policy_module.alarming.service.CommonDbClient')
+    @mock.patch.object(CommonDbClient, "__init__", lambda *args, **kwargs: None)
     @mock.patch('osm_policy_module.alarming.service.MonClient')
     @mock.patch('osm_policy_module.alarming.service.LcmClient')
-    @mock.patch('osm_policy_module.autoscaling.service.CommonDbClient')
     @mock.patch('osm_policy_module.autoscaling.service.MonClient')
     @mock.patch('osm_policy_module.autoscaling.service.LcmClient')
     @mock.patch.object(AutoscalingService, 'configure_scaling_groups')
     @mock.patch.object(AlarmingService, 'configure_vnf_alarms')
     @mock.patch.object(AutoscalingService, 'delete_orphaned_alarms')
+    @mock.patch.object(CommonDbClient, 'get_nslcmop')
     def test_handle_instantiated(self,
+                                 get_nslcmop,
                                  delete_orphaned_alarms,
                                  configure_vnf_alarms,
                                  configure_scaling_groups,
                                  autoscaling_lcm_client,
                                  autoscaling_mon_client,
-                                 autoscaling_db_client,
                                  alarming_lcm_client,
-                                 alarming_mon_client,
-                                 alarming_db_client):
+                                 alarming_mon_client):
         async def mock_configure_scaling_groups(nsr_id):
             pass
 
@@ -67,10 +67,8 @@ class PolicyAgentTest(unittest.TestCase):
         agent = PolicyModuleAgent(config, self.loop)
         assert autoscaling_lcm_client.called
         assert autoscaling_mon_client.called
-        assert autoscaling_db_client.called
         assert alarming_lcm_client.called
         assert alarming_mon_client.called
-        assert alarming_db_client.called
         content = {
             'nslcmop_id': 'test_id',
         }
@@ -86,19 +84,18 @@ class PolicyAgentTest(unittest.TestCase):
         configure_vnf_alarms.side_effect = mock_configure_vnf_alarms
         delete_orphaned_alarms.side_effect = mock_delete_orphaned_alarms
 
-        autoscaling_db_client.return_value.get_nslcmop.return_value = nslcmop_completed
+        get_nslcmop.return_value = nslcmop_completed
         self.loop.run_until_complete(agent._handle_instantiated(content))
         configure_scaling_groups.assert_called_with('test_nsr_id')
         configure_scaling_groups.reset_mock()
 
-        autoscaling_db_client.return_value.get_nslcmop.return_value = nslcmop_failed
+        get_nslcmop.return_value = nslcmop_failed
         self.loop.run_until_complete(agent._handle_instantiated(content))
         configure_scaling_groups.assert_not_called()
 
-    @mock.patch('osm_policy_module.autoscaling.service.CommonDbClient')
+    @mock.patch.object(CommonDbClient, "__init__", lambda *args, **kwargs: None)
     @mock.patch('osm_policy_module.autoscaling.service.MonClient')
     @mock.patch('osm_policy_module.autoscaling.service.LcmClient')
-    @mock.patch('osm_policy_module.alarming.service.CommonDbClient')
     @mock.patch('osm_policy_module.alarming.service.MonClient')
     @mock.patch('osm_policy_module.alarming.service.LcmClient')
     @mock.patch.object(AutoscalingService, 'handle_alarm')
@@ -108,10 +105,8 @@ class PolicyAgentTest(unittest.TestCase):
                                        autoscaling_handle_alarm,
                                        autoscaling_lcm_client,
                                        autoscaling_mon_client,
-                                       autoscaling_db_client,
                                        alarming_lcm_client,
-                                       alarming_mon_client,
-                                       alarming_db_client):
+                                       alarming_mon_client):
         async def mock_handle_alarm(alarm_uuid, status, payload=None):
             pass
 
@@ -119,10 +114,8 @@ class PolicyAgentTest(unittest.TestCase):
         agent = PolicyModuleAgent(config, self.loop)
         assert autoscaling_lcm_client.called
         assert autoscaling_mon_client.called
-        assert autoscaling_db_client.called
         assert alarming_lcm_client.called
         assert alarming_mon_client.called
-        assert alarming_db_client.called
         content = {
             'notify_details': {
                 'alarm_uuid': 'test_alarm_uuid',

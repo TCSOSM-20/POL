@@ -28,6 +28,7 @@ import peewee
 
 from osm_policy_module.alarming.service import AlarmingService
 from osm_policy_module.autoscaling.service import AutoscalingService
+from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.common.message_bus_client import MessageBusClient
 from osm_policy_module.core.config import Config
 
@@ -43,6 +44,7 @@ class PolicyModuleAgent:
             loop = asyncio.get_event_loop()
         self.loop = loop
         self.msg_bus = MessageBusClient(config)
+        self.db_client = CommonDbClient(config)
         self.autoscaling_service = AutoscalingService(config, loop)
         self.alarming_service = AlarmingService(config, loop)
 
@@ -91,7 +93,7 @@ class PolicyModuleAgent:
     async def _handle_instantiated(self, content):
         log.debug("_handle_instantiated: %s", content)
         nslcmop_id = content['nslcmop_id']
-        nslcmop = self.autoscaling_service.get_nslcmop(nslcmop_id)
+        nslcmop = self.db_client.get_nslcmop(nslcmop_id)
         if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':
             nsr_id = nslcmop['nsInstanceId']
             log.info("Configuring nsr_id: %s", nsr_id)
@@ -106,7 +108,7 @@ class PolicyModuleAgent:
     async def _handle_scaled(self, content):
         log.debug("_handle_scaled: %s", content)
         nslcmop_id = content['nslcmop_id']
-        nslcmop = self.autoscaling_service.get_nslcmop(nslcmop_id)
+        nslcmop = self.db_client.get_nslcmop(nslcmop_id)
         if nslcmop['operationState'] == 'COMPLETED' or nslcmop['operationState'] == 'PARTIALLY_COMPLETED':
             nsr_id = nslcmop['nsInstanceId']
             log.info("Configuring scaled service with nsr_id: %s", nsr_id)

@@ -146,13 +146,15 @@ class MonClient:
             'correlation_id': cor_id,
             'alarm_name': 'osm_alarm_{}_{}_{}_{}'.format(ns_id, vnf_member_index, vdu_name, metric_name),
             'metric_name': metric_name,
-            'ns_id': ns_id,
-            'vdu_name': vdu_name,
-            'vnf_member_index': vnf_member_index,
             'operation': operation,
             'severity': 'critical',
             'threshold_value': threshold,
-            'statistic': statistic
+            'statistic': statistic,
+            'tags': {
+                'ns_id': ns_id,
+                'vdu_name': vdu_name,
+                'vnf_member_index': vnf_member_index,
+            }
         }
         msg = {
             'alarm_create_request': alarm_create_request,
@@ -164,9 +166,11 @@ class MonClient:
         alarm_delete_request = {
             'correlation_id': cor_id,
             'alarm_uuid': alarm_uuid,
-            'ns_id': ns_id,
-            'vdu_name': vdu_name,
-            'vnf_member_index': vnf_member_index
+            'tags': {
+                'ns_id': ns_id,
+                'vdu_name': vdu_name,
+                'vnf_member_index': vnf_member_index
+            }
         }
         msg = {
             'alarm_delete_request': alarm_delete_request,
