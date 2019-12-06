@@ -86,8 +86,9 @@ class AlarmingService:
                                         lambda param: param['id'] == alarm_descriptor['vnf-monitoring-param-ref'],
                                         vnfd['monitoring-param'])
                                 )
+                                metric_name = self._get_metric_name(vnf_monitoring_param, vdur, vnfd)
                                 alarm_uuid = await self.mon_client.create_alarm(
-                                    metric_name=alarm_descriptor['vnf-monitoring-param-ref'],
+                                    metric_name=metric_name,
                                     ns_id=nsr_id,
                                     vdu_name=vdur['name'],
                                     vnf_member_index=vnfr['member-vnf-index-ref'],
@@ -191,3 +192,21 @@ class AlarmingService:
             log.debug("There is no alarming action configured for alarm %s.", alarm_uuid)
         finally:
             database.db.close()
+
+    def _get_metric_name(self, vnf_monitoring_param: dict, vdur: dict, vnfd: dict):
+        vdu = next(
+            filter(lambda vdu: vdu['id'] == vdur['vdu-id-ref'], vnfd['vdu'])
+        )
+        if 'vdu-monitoring-param' in vnf_monitoring_param:
+            vdu_monitoring_param = next(filter(
+                lambda param: param['id'] == vnf_monitoring_param['vdu-monitoring-param'][
+                    'vdu-monitoring-param-ref'], vdu['monitoring-param']))
+            nfvi_metric = vdu_monitoring_param['nfvi-metric']
+            return nfvi_metric
+        if 'vdu-metric' in vnf_monitoring_param:
+            vnf_metric_name = vnf_monitoring_param['vdu-metric']['vdu-metric-name-ref']
+            return vnf_metric_name
+        if 'vnf-metric' in vnf_monitoring_param:
+            vnf_metric_name = vnf_monitoring_param['vnf-metric']['vnf-metric-name-ref']
+            return vnf_metric_name
+        raise ValueError('No metric name found for vnf_monitoring_param %s' % vnf_monitoring_param['id'])

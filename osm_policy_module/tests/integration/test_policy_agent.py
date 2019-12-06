@@ -545,20 +545,20 @@ class PolicyModuleAgentTest(unittest.TestCase):
         config = Config()
         agent = PolicyModuleAgent(config, self.loop)
         self.loop.run_until_complete(agent.alarming_service.configure_vnf_alarms("test_nsr_id"))
-        create_alarm.assert_any_call(metric_name='cirros_vnf_memory_util',
+        create_alarm.assert_any_call(metric_name='average_memory_utilization',
                                      ns_id='test_nsr_id',
-                                     operation='LT',
-                                     statistic='AVERAGE',
-                                     threshold=20.0,
                                      vdu_name='cirros_ns-1-cirros_vnfd-VM-1',
-                                     vnf_member_index='1')
-        create_alarm.assert_any_call(metric_name='cirros_vnf_memory_util',
-                                     ns_id='test_nsr_id',
-                                     operation='LT',
-                                     statistic='AVERAGE',
+                                     vnf_member_index='1',
                                      threshold=20.0,
+                                     operation='LT',
+                                     statistic='AVERAGE')
+        create_alarm.assert_any_call(metric_name='average_memory_utilization',
+                                     ns_id='test_nsr_id',
                                      vdu_name='cirros_ns-2-cirros_vnfd-VM-1',
-                                     vnf_member_index='2')
+                                     vnf_member_index='2',
+                                     threshold=20.0,
+                                     operation='LT',
+                                     statistic='AVERAGE')
 
 
 if __name__ == '__main__':
