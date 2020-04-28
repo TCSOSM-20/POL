@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=no-member
 
 # Copyright 2018 Whitestack, LLC
 # *************************************************************
@@ -26,6 +27,7 @@ import json
 import logging
 
 import requests
+from requests.exceptions import ConnectionError
 
 from osm_policy_module.common.common_db_client import CommonDbClient
 from osm_policy_module.common.lcm_client import LcmClient
@@ -187,7 +189,11 @@ class AlarmingService:
                     if action.type == status:
                         log.info("Executing request to url %s for vnf alarm %s with status %s", action.url,
                                  alarm.alarm_id, status)
-                        requests.post(url=action.url, json=json.dumps(payload))
+                        try:
+                            requests.post(url=action.url, json=json.dumps(payload))
+                        except ConnectionError:
+                            log.exception("Error connecting to url %s", action.url)
+
         except VnfAlarm.DoesNotExist:
             log.debug("There is no alarming action configured for alarm %s.", alarm_uuid)
         finally:
