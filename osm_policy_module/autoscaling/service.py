@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=no-member
 
 # Copyright 2018 Whitestack, LLC
 # *************************************************************
