@@ -478,6 +478,13 @@ class PolicyModuleAgentTest(unittest.TestCase):
             if '2' in args[1]:
                 return vnfr_record_mocks[1]
 
+        def assert_not_called_with(*args, **kwargs):
+            try:
+                create_alarm.assert_called_with(*args, **kwargs)
+            except AssertionError:
+                return
+            raise AssertionError('Expected to not have been called.')
+
         async def _test_configure_scaling_groups_create_alarm(*args, **kwargs):
             return uuid.uuid4()
 
@@ -486,6 +493,7 @@ class PolicyModuleAgentTest(unittest.TestCase):
         get_nsr.return_value = nsr_record_mock
         get_vnfd.return_value = vnfd_record_mock
         create_alarm.side_effect = _test_configure_scaling_groups_create_alarm
+        create_alarm.assert_not_called_with = assert_not_called_with
         config = Config()
         agent = PolicyModuleAgent(config, self.loop)
         self.loop.run_until_complete(agent.autoscaling_service.configure_scaling_groups("test_nsr_id"))
@@ -496,13 +504,13 @@ class PolicyModuleAgentTest(unittest.TestCase):
                                      threshold=80,
                                      vdu_name='cirros_ns-1-cirros_vnfd-VM-1',
                                      vnf_member_index='1')
-        create_alarm.assert_any_call(metric_name='average_memory_utilization',
-                                     ns_id='test_nsr_id',
-                                     operation='LT',
-                                     statistic='AVERAGE',
-                                     threshold=20,
-                                     vdu_name='cirros_ns-1-cirros_vnfd-VM-1',
-                                     vnf_member_index='1')
+        create_alarm.assert_not_called_with(metric_name='average_memory_utilization',
+                                            ns_id='test_nsr_id',
+                                            operation='LT',
+                                            statistic='AVERAGE',
+                                            threshold=20,
+                                            vdu_name='cirros_ns-1-cirros_vnfd-VM-1',
+                                            vnf_member_index='1')
         create_alarm.assert_any_call(metric_name='average_memory_utilization',
                                      ns_id='test_nsr_id',
                                      operation='GT',
@@ -510,13 +518,13 @@ class PolicyModuleAgentTest(unittest.TestCase):
                                      threshold=80,
                                      vdu_name='cirros_ns-2-cirros_vnfd-VM-1',
                                      vnf_member_index='2')
-        create_alarm.assert_any_call(metric_name='average_memory_utilization',
-                                     ns_id='test_nsr_id',
-                                     operation='LT',
-                                     statistic='AVERAGE',
-                                     threshold=20,
-                                     vdu_name='cirros_ns-2-cirros_vnfd-VM-1',
-                                     vnf_member_index='2')
+        create_alarm.assert_not_called_with(metric_name='average_memory_utilization',
+                                            ns_id='test_nsr_id',
+                                            operation='LT',
+                                            statistic='AVERAGE',
+                                            threshold=20,
+                                            vdu_name='cirros_ns-2-cirros_vnfd-VM-1',
+                                            vnf_member_index='2')
         scaling_record = ScalingGroup.get()
         self.assertEqual(scaling_record.name, 'scale_cirros_vnfd-VM')
         self.assertEqual(scaling_record.nsr_id, 'test_nsr_id')

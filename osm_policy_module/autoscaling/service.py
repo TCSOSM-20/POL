@@ -114,23 +114,34 @@ class AutoscalingService:
                                         except ScalingAlarm.DoesNotExist:
                                             pass
                                         metric_name = self._get_metric_name(vnf_monitoring_param, vdur, vnfd)
-                                        alarm_uuid = await self.mon_client.create_alarm(
-                                            metric_name=metric_name,
-                                            ns_id=nsr_id,
-                                            vdu_name=vdur['name'],
-                                            vnf_member_index=vnfr['member-vnf-index-ref'],
-                                            threshold=scaling_criteria['scale-in-threshold'],
-                                            operation=scaling_criteria['scale-in-relational-operation'],
-                                            statistic=vnf_monitoring_param['aggregation-type']
-                                        )
-                                        alarm = ScalingAlarmRepository.create(
-                                            alarm_uuid=alarm_uuid,
-                                            action='scale_in',
-                                            vnf_member_index=vnfr['member-vnf-index-ref'],
-                                            vdu_name=vdur['name'],
-                                            scaling_criteria=scaling_criteria_record
-                                        )
-                                        alarms_created.append(alarm)
+
+                                        db_nsr = self.db_client.get_nsr(nsr_id)
+                                        nb_scale_op = 0
+                                        if db_nsr["_admin"].get("scaling-group"):
+                                            db_nsr_admin = db_nsr["_admin"]["scaling-group"]
+                                            for admin_scale_index, admin_scale_info in enumerate(db_nsr_admin):
+                                                if admin_scale_info["name"] == scaling_group["name"]:
+                                                    nb_scale_op = admin_scale_info.get("nb-scale-op", 0)
+                                                    break
+                                        min_instance_count = int(scaling_group["min-instance-count"])
+                                        if nb_scale_op > min_instance_count:
+                                            alarm_uuid = await self.mon_client.create_alarm(
+                                                metric_name=metric_name,
+                                                ns_id=nsr_id,
+                                                vdu_name=vdur['name'],
+                                                vnf_member_index=vnfr['member-vnf-index-ref'],
+                                                threshold=scaling_criteria['scale-in-threshold'],
+                                                operation=scaling_criteria['scale-in-relational-operation'],
+                                                statistic=vnf_monitoring_param['aggregation-type']
+                                            )
+                                            alarm = ScalingAlarmRepository.create(
+                                                alarm_uuid=alarm_uuid,
+                                                action='scale_in',
+                                                vnf_member_index=vnfr['member-vnf-index-ref'],
+                                                vdu_name=vdur['name'],
+                                                scaling_criteria=scaling_criteria_record
+                                            )
+                                            alarms_created.append(alarm)
                                         alarm_uuid = await self.mon_client.create_alarm(
                                             metric_name=metric_name,
                                             ns_id=nsr_id,
