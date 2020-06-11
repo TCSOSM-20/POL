@@ -23,6 +23,7 @@ import argparse
 import logging
 import subprocess
 import sys
+import os
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +53,12 @@ def _processes_running():
         if not _contains_process(processes_running, p):
             log.error("Process %s not running!" % p)
             return False
-    return True
+
+    # Check if process is running properly (listening to kafka bus)
+    if os.path.exists('/tmp/osm_pol_agent_health_flag'):
+        return True
+    else:
+        return False
 
 
 if __name__ == '__main__':

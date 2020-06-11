@@ -23,6 +23,8 @@
 ##
 import asyncio
 import logging
+from pathlib import Path
+import os
 
 import peewee
 
@@ -52,14 +54,18 @@ class PolicyModuleAgent:
         self.loop.run_until_complete(self.start())
 
     async def start(self):
+        Path('/tmp/osm_pol_agent_health_flag').touch()
         topics = [
             "ns",
             "alarm_response"
         ]
         await self.msg_bus.aioread(topics, self._process_msg)
         log.critical("Exiting...")
+        if os.path.exists('/tmp/osm_pol_agent_health_flag'):
+            os.remove('/tmp/osm_pol_agent_health_flag')
 
     async def _process_msg(self, topic, key, msg):
+        Path('/tmp/osm_pol_agent_health_flag').touch()
         log.debug("_process_msg topic=%s key=%s msg=%s", topic, key, msg)
         try:
             if key in ALLOWED_KAFKA_KEYS:
