@@ -20,9 +20,9 @@
 # contact: bdiaz@whitestack.com or glavado@whitestack.com
 ##
 
-FROM ubuntu:16.04
+FROM ubuntu:20.04
 
-LABEL authors="Benjamín Díaz"
+LABEL authors="Benjamín Díaz, Fabián Bravo"
 
 RUN apt-get --yes update \
  && apt-get --yes install python3 python3-pip libmysqlclient-dev git mysql-client \
@@ -47,7 +47,7 @@ ENV OSMPOL_SQL_DATABASE_URI sqlite:///policy_module.db
 
 ENV OSMPOL_GLOBAL_LOGLEVEL INFO
 
-HEALTHCHECK --interval=5s --timeout=2s --retries=12 \
+HEALTHCHECK --interval=10s --timeout=5s --retries=10 --start-period=30s \
   CMD osm-pol-healthcheck || exit 1
 
 CMD /bin/bash /policy_module/docker/scripts/start.sh

@@ -25,6 +25,7 @@ import argparse
 import asyncio
 import logging
 import sys
+import os
 
 from osm_policy_module.core.agent import PolicyModuleAgent
 from osm_policy_module.core.config import Config
@@ -32,6 +33,10 @@ from osm_policy_module.core.database import DatabaseManager
 
 
 def main():
+    # Cleanup old temp health file
+    if os.path.exists('/tmp/osm_pol_agent_health_flag'):
+        os.remove('/tmp/osm_pol_agent_health_flag')
+
     parser = argparse.ArgumentParser(prog='osm-policy-agent')
     parser.add_argument('--config-file', nargs='?', help='POL configuration file')
     args = parser.parse_args()
